@@ -4,13 +4,13 @@ Giao diện web học Toán THCS cùng 3 AI, dựng theo design trên Google Sti
 **React 18 + Vite 5 + Tailwind CSS 3 + React Router 6 + Axios.**
 
 ## Chạy
-Cần Node.js 18+ và BE đang chạy ở http://localhost:8080.
+Cần Node.js 18+ và BE đang chạy ở http://localhost:8089.
 
 ```bash
 npm install
 npm run dev
 ```
-Mở http://localhost:5173. Vite proxy `/api` và `/uploads` sang BE nên không cần cấu hình CORS khi dev.
+Copy `.env.example` thành `.env` (địa chỉ BE: `VITE_BE_URL`, mặc định `http://localhost:8089`). Mở http://localhost:5173. Vite proxy `/api` và `/uploads` sang BE nên không cần cấu hình CORS khi dev.
 
 Tài khoản demo (mật khẩu `123456`): `hocsinh@mael.vn` (học sinh), `giangvien@mael.vn` (giảng viên).
 

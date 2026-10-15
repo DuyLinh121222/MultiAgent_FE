@@ -35,7 +35,7 @@ export function getErrorMessage(error, fallback = 'Có lỗi xảy ra, vui lòng
   const data = error?.response?.data
   if (data?.fieldErrors) return Object.values(data.fieldErrors)[0]
   if (data?.message) return data.message
-  if (error?.code === 'ERR_NETWORK') return 'Không kết nối được máy chủ. Kiểm tra BE đã chạy chưa (cổng 8080).'
+  if (error?.code === 'ERR_NETWORK') return 'Không kết nối được máy chủ. Kiểm tra BE đã chạy chưa (cổng 8089).'
   return fallback
 }
 
