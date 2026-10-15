@@ -1,0 +1,78 @@
+import client from './client'
+
+/** Gom tất cả API gọi BE. Mỗi hàm trả về data (không phải response). */
+const get = (url, config) => client.get(url, config).then((r) => r.data)
+const post = (url, body, config) => client.post(url, body, config).then((r) => r.data)
+const put = (url, body) => client.put(url, body).then((r) => r.data)
+const patch = (url, body) => client.patch(url, body).then((r) => r.data)
+
+export const authApi = {
+  login: (email, password) => post('/api/auth/login', { email, password }),
+  register: (payload) => post('/api/auth/register', payload),
+  me: () => get('/api/auth/me'),
+}
+
+export const learningApi = {
+  dashboard: () => get('/api/dashboard'),
+  paths: () => get('/api/learning-paths'),
+  myPath: () => get('/api/learning-paths/me'),
+  path: (pathId) => get(`/api/learning-paths/${pathId}`),
+  lesson: (lessonId) => get(`/api/lessons/${lessonId}`),
+  updateProgress: (lessonId, progressPercent) => put(`/api/lessons/${lessonId}/progress`, { progressPercent }),
+}
+
+export const discussionApi = {
+  start: (lessonId) => post('/api/discussions', { lessonId }),
+  list: () => get('/api/discussions'),
+  get: (sessionId) => get(`/api/discussions/${sessionId}`),
+  send: (sessionId, content, replyToId) => post(`/api/discussions/${sessionId}/messages`, { content, replyToId }),
+  flagError: (sessionId, messageId) => post(`/api/discussions/${sessionId}/messages/${messageId}/flag-error`),
+  end: (sessionId) => post(`/api/discussions/${sessionId}/end`),
+}
+
+export const photoApi = {
+  upload: (file, note) => {
+    const form = new FormData()
+    form.append('image', file)
+    if (note) form.append('note', note)
+    return post('/api/photo-problems', form, { timeout: 120000 })
+  },
+  list: () => get('/api/photo-problems'),
+  get: (id) => get(`/api/photo-problems/${id}`),
+}
+
+export const planApi = {
+  plans: () => get('/api/plans'),
+  mySubscription: () => client.get('/api/subscriptions/me').then((r) => (r.status === 204 ? null : r.data)),
+}
+
+export const paymentApi = {
+  create: (planId) => post('/api/payments', { planId }),
+  get: (paymentId) => get(`/api/payments/${paymentId}`),
+  list: () => get('/api/payments'),
+  mockConfirm: (paymentId) => post(`/api/payments/${paymentId}/mock-confirm`),
+}
+
+export const quizApi = {
+  list: () => get('/api/quizzes'),
+  start: (quizId) => post(`/api/quizzes/${quizId}/attempts`),
+  submit: (attemptId, answers) => post(`/api/attempts/${attemptId}/submit`, { answers }),
+  weaknesses: () => get('/api/weaknesses'),
+}
+
+export const studentApi = {
+  notifications: () => get('/api/notifications'),
+  markRead: (id) => patch(`/api/notifications/${id}/read`),
+  markAllRead: () => patch('/api/notifications/read-all'),
+  achievements: () => get('/api/achievements'),
+  report: (payload) => post('/api/reports', payload),
+}
+
+export const lecturerApi = {
+  pendingLessons: () => get('/api/lecturer/lessons/pending'),
+  pendingQuestions: () => get('/api/lecturer/questions/pending'),
+  reviewLesson: (id, decision, comment) => post(`/api/lecturer/lessons/${id}/review`, { decision, comment }),
+  reviewQuestion: (id, decision, comment) => post(`/api/lecturer/questions/${id}/review`, { decision, comment }),
+  reports: () => get('/api/lecturer/reports'),
+  handleReport: (id, status, resolutionNote) => patch(`/api/lecturer/reports/${id}`, { status, resolutionNote }),
+}

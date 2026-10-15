@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body { margin: 0; padding: 0; }
+  body {
+    @apply bg-surface text-on-surface font-sans text-body-md antialiased;
+    overscroll-behavior: none;
+  }
+}
+
+@layer components {
+  /* Nút chính: xanh, có bóng "bấm" như design */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-space-xs rounded-xl bg-primary px-space-lg py-space-sm
+           text-label-lg text-on-primary shadow-tactile transition-all hover:translate-y-[1px] hover:bg-primary-container
+           disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-space-xs rounded-xl bg-surface-container px-space-lg py-space-sm
+           text-label-lg text-on-surface transition-colors hover:bg-surface-container-high
+           disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-space-xs rounded-xl px-space-md py-space-sm
+           text-label-lg text-on-surface-variant transition-colors hover:bg-surface-container-low;
+  }
+  .card {
+    @apply rounded-xl bg-surface-container-lowest p-space-lg shadow-sm;
+  }
+  .chip {
+    @apply inline-flex items-center gap-space-xs rounded-full px-space-md py-space-xs text-label-md;
+  }
+  .input {
+    @apply h-14 w-full rounded-2xl bg-surface-container-low px-4 text-body-lg text-on-surface placeholder:text-outline
+           transition-all focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary;
+  }
+  .page {
+    @apply mx-auto flex w-full max-w-7xl flex-col gap-space-xl px-margin-mobile py-space-lg md:px-margin;
+  }
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  line-height: 1;
+  user-select: none;
+}
+.material-symbols-outlined.filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #c3c6d7; border-radius: 9999px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+@keyframes typing {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+.typing-dot { animation: typing 1.2s infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
