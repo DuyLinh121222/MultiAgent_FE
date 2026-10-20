@@ -4,13 +4,16 @@ import Icon from '../common/Icon'
 import Logo from '../common/Logo'
 import { useAuth } from '../../context/AuthContext'
 import studentAvatar from '../../assets/avatar-kiet.jpg'
+import Pet from '../game/Pet'
+import { Coin } from '../game/GameArt'
 
 const STUDENT_NAV = [
-  { to: '/', label: 'Trang chủ & Lộ trình', icon: 'home', end: true },
-  { to: '/study-room', label: 'Phòng học nhóm AI', icon: 'forum' },
-  { to: '/photo-solver', label: 'Giải toán bằng ảnh', icon: 'photo_camera' },
-  { to: '/quizzes', label: 'Luyện tập', icon: 'quiz' },
-  { to: '/pricing', label: 'Gói học & Đăng ký', icon: 'workspace_premium' },
+  { to: '/', label: 'Bản đồ ải', icon: 'map', end: true },
+  { to: '/study-room', label: 'Phòng học AI', icon: 'forum' },
+  { to: '/quizzes', label: 'Ôn điểm yếu', icon: 'insights' },
+  { to: '/photo-solver', label: 'Giải bằng ảnh', icon: 'photo_camera' },
+  { to: '/pets', label: 'Thú cưng', icon: 'pets' },
+  { to: '/pricing', label: 'Gói học', icon: 'workspace_premium' },
 ]
 const LECTURER_NAV = [{ to: '/lecturer', label: 'Duyệt nội dung', icon: 'fact_check', end: true }]
 
@@ -52,7 +55,7 @@ export default function Header() {
           <nav className="hidden items-center gap-space-xs xl:flex">
             {nav.map((n) => (
               <NavLink key={n.to} to={n.to} end={n.end} className={navClass}>
-                {n.label}
+                <Icon name={n.icon} className="text-[20px]" /> {n.label}
               </NavLink>
             ))}
           </nav>
@@ -71,10 +74,15 @@ export default function Header() {
               <span className="text-label-md">Gói học đã hết hạn</span>
             </div>
           )}
+          {isStudent && (
+            <Link to="/pets" className="flex items-center gap-1.5 rounded-full bg-secondary-fixed px-space-md py-space-xs text-label-lg font-extrabold text-on-secondary-fixed" title="Xu đổi thú cưng">
+              <Coin size={20} /> {user?.coins ?? 0}
+            </Link>
+          )}
           {isStudent && (!sub || sub.trial) && (
-            <Link to="/pricing" className="btn-primary hidden md:inline-flex">
+            <Link to="/pricing" className="btn-primary hidden lg:inline-flex">
               <Icon name="bolt" className="text-[18px]" />
-              <span>Kích hoạt gói 99k/tháng</span>
+              <span>Kích hoạt gói</span>
             </Link>
           )}
           {isStudent && sub && !sub.trial && (
@@ -85,11 +93,13 @@ export default function Header() {
 
           <div className="relative" ref={menuRef}>
             <button type="button" onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-space-sm rounded-xl p-1 pr-2 hover:bg-surface-container-low">
-              <img src={user?.avatarUrl || studentAvatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+              {isStudent && !user?.avatarUrl
+                ? <span className="rounded-full bg-primary-fixed/60"><Pet code={user?.activePetCode} size={36} /></span>
+                : <img src={user?.avatarUrl || studentAvatar} alt="" className="h-8 w-8 rounded-full object-cover" />}
               <div className="hidden flex-col text-left md:flex">
                 <span className="text-label-lg leading-tight text-on-surface">{user?.fullName}</span>
                 <span className="text-label-sm leading-none text-on-surface-variant">
-                  {isStudent ? `Lớp ${user?.gradeLevel}` : user?.role === 'LECTURER' ? 'Giảng viên' : 'Quản trị viên'}
+                  {isStudent ? `Lớp ${user?.gradeLevel} • Cấp ${Math.floor((user?.xp || 0) / 100) + 1}` : user?.role === 'LECTURER' ? 'Giảng viên' : 'Quản trị viên'}
                 </span>
               </div>
               <Icon name="expand_more" className="text-[18px] text-on-surface-variant" />

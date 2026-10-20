@@ -61,3 +61,106 @@
 .typing-dot { animation: typing 1.2s infinite; }
 .typing-dot:nth-child(2) { animation-delay: 0.15s; }
 .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+/* ===================== Bản đồ ải & game ===================== */
+.welcome-bg {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 221, 184, 0.9) 0, transparent 32%),
+    radial-gradient(circle at 88% 12%, rgba(111, 251, 190, 0.45) 0, transparent 30%),
+    radial-gradient(circle at 80% 85%, rgba(180, 197, 255, 0.7) 0, transparent 35%),
+    #f3f6ff;
+}
+
+/* Nút ải dạng khối 3D như game */
+.node-3d {
+  color: #fff;
+  border: 4px solid rgba(255, 255, 255, 0.9);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+}
+.node-3d:active { transform: translateY(4px); }
+.node-open {
+  background: radial-gradient(circle at 35% 30%, #ffffff55 0, transparent 40%), var(--accent, #2563eb);
+  box-shadow: 0 6px 0 0 rgba(0, 0, 0, 0.25), 0 10px 18px -6px rgba(0, 0, 0, 0.35);
+}
+.node-cleared {
+  background: radial-gradient(circle at 35% 30%, #fff6b0 0, #ffc93c 45%, #f0a000 100%);
+  box-shadow: 0 6px 0 0 #c27c00, 0 10px 18px -6px rgba(194, 124, 0, 0.6);
+}
+.node-current {
+  background: radial-gradient(circle at 35% 30%, #8fb2ff 0, #2563eb 55%, #004ac6 100%);
+  box-shadow: 0 6px 0 0 #00318a, 0 10px 22px -4px rgba(0, 74, 198, 0.6);
+}
+.node-locked {
+  color: #9aa3b8;
+  background: radial-gradient(circle at 35% 30%, #ffffff 0, #dfe4ee 60%, #c9d0de 100%);
+  box-shadow: 0 6px 0 0 #a9b2c5;
+  text-shadow: none;
+}
+.node-3d:hover:not(.node-locked) { transform: translateY(-2px) scale(1.04); }
+
+@keyframes node-pulse {
+  0% { box-shadow: 0 6px 0 0 #00318a, 0 0 0 0 rgba(37, 99, 235, 0.55); }
+  70% { box-shadow: 0 6px 0 0 #00318a, 0 0 0 18px rgba(37, 99, 235, 0); }
+  100% { box-shadow: 0 6px 0 0 #00318a, 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+.node-pulse { animation: node-pulse 1.8s infinite; }
+
+@keyframes boss-glow {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 201, 60, 0)); }
+  50% { filter: drop-shadow(0 0 14px rgba(255, 201, 60, 0.95)); }
+}
+.boss-glow { animation: boss-glow 1.8s ease-in-out infinite; }
+
+@keyframes pet-bounce {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  40% { transform: translateY(-7px) scale(0.97, 1.03); }
+  60% { transform: translateY(0) scale(1.04, 0.96); }
+}
+.pet-bounce { animation: pet-bounce 1.4s ease-in-out infinite; transform-origin: 50% 100%; }
+
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.92) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.pop-in { animation: pop-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+
+@keyframes star-pop {
+  0% { opacity: 0; transform: scale(0) rotate(-40deg); }
+  70% { opacity: 1; transform: scale(1.35) rotate(8deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+.star-pop { animation: star-pop 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.4) both; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.shake { animation: shake 0.4s ease; }
+
+@keyframes chest-wiggle {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-6deg); }
+  75% { transform: rotate(6deg); }
+}
+.chest-wiggle { animation: chest-wiggle 0.5s ease-in-out infinite; }
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-20px) rotate(0); opacity: 1; }
+  100% { transform: translateY(420px) rotate(540deg); opacity: 0; }
+}
+.confetti-piece { position: absolute; top: 0; width: 9px; height: 14px; border-radius: 2px; animation: confetti-fall 2.2s ease-in forwards; }
+
+/* Băng rôn tên chương */
+.ribbon { position: relative; border-radius: 14px; }
+.ribbon::before, .ribbon::after {
+  content: ''; position: absolute; top: 8px; width: 18px; height: 100%; z-index: -1; border-radius: 4px;
+  background: inherit; filter: brightness(0.8);
+}
+.ribbon::before { left: -10px; transform: skewY(20deg); }
+.ribbon::after { right: -10px; transform: skewY(-20deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-bounce, .node-pulse, .boss-glow, .chest-wiggle, .star-pop, .pop-in { animation: none; }
+}

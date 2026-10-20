@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Icon from '../components/common/Icon'
 import Loading from '../components/common/Loading'
@@ -10,14 +10,24 @@ import { getErrorMessage } from '../api/client'
 import { AGENTS_INTRO, agentUi } from '../constants/agents'
 import { useAuth } from '../context/AuthContext'
 import { formatTime } from '../utils/format'
-import studentAvatar from '../assets/avatar-kiet.jpg'
+import Pet from '../components/game/Pet'
+import { speak, stopSpeaking, warmUpVoices } from '../utils/speech'
 
-const QUICK_REPLIES = [
-  { icon: 'help_center', text: 'Em chưa hiểu, thầy giải thích lại giúp em' },
-  { icon: 'report', text: 'Bạn Kiệt nói sai rồi!' },
-  { icon: 'edit_note', text: 'Thầy hướng dẫn từng bước giúp em' },
-  { icon: 'lightbulb', text: 'Có cách giải nào khác không?' },
+// Dự phòng khi tin nhắn AI cuối cùng không kèm lựa chọn
+const FALLBACK_REPLIES = [
+  'Em chưa hiểu, thầy giải thích lại giúp em',
+  'Thầy cho em một ví dụ',
+  'Có cách giải nào khác không?',
 ]
+const VOICE_KEY = 'mael_voice_on'
+
+function readVoicePref() {
+  try {
+    return localStorage.getItem(VOICE_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
 
 /** Phòng thảo luận: học sinh chat với Thầy AI + 2 bạn AI */
 export default function DiscussionPage() {
@@ -31,13 +41,55 @@ export default function DiscussionPage() {
   const [toast, setToast] = useState(null)
   const [flagged, setFlagged] = useState({})
   const [showLesson, setShowLesson] = useState(true)
+  const [voiceOn, setVoiceOn] = useState(readVoicePref)
+  const [speakingId, setSpeakingId] = useState(null)
   const bottomRef = useRef(null)
+  const queueRef = useRef(Promise.resolve())
+  const voiceRef = useRef(voiceOn)
+
+  // Đọc lần lượt các tin nhắn của AI, mỗi AI một giọng
+  const readAloud = useCallback((list) => {
+    list.filter((m) => m.senderType === 'AGENT').forEach((m) => {
+      queueRef.current = queueRef.current.then(async () => {
+        if (!voiceRef.current) return
+        setSpeakingId(m.id)
+        await speak(m.agentId, m.content)
+        setSpeakingId(null)
+      })
+    })
+  }, [])
 
   useEffect(() => {
+    warmUpVoices()
     discussionApi.get(sessionId)
-      .then((s) => { setSession(s); setMessages(s.messages) })
+      .then((s) => {
+        setSession(s)
+        setMessages(s.messages)
+        // Vừa mở phòng (chưa có tin nhắn học sinh) thì đọc lời chào
+        if (s.status === 'ACTIVE' && !s.messages.some((m) => m.senderType === 'STUDENT')) readAloud(s.messages)
+      })
       .catch((e) => setError(getErrorMessage(e)))
-  }, [sessionId])
+    return () => stopSpeaking()
+  }, [sessionId, readAloud])
+
+  const toggleVoice = () => {
+    const next = !voiceOn
+    setVoiceOn(next)
+    voiceRef.current = next
+    try { localStorage.setItem(VOICE_KEY, next ? 'on' : 'off') } catch { /* bỏ qua */ }
+    if (!next) {
+      stopSpeaking()
+      queueRef.current = Promise.resolve()
+      setSpeakingId(null)
+    }
+  }
+
+  const speakOne = (m) => {
+    stopSpeaking()
+    queueRef.current = Promise.resolve()
+    setSpeakingId(m.id)
+    speak(m.agentId, m.content).finally(() => setSpeakingId(null))
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -46,6 +98,8 @@ export default function DiscussionPage() {
   const send = async (text) => {
     const content = (text ?? input).trim()
     if (!content || sending) return
+    stopSpeaking()
+    queueRef.current = Promise.resolve()
     setInput('')
     setSending(true)
     setError('')
@@ -55,6 +109,7 @@ export default function DiscussionPage() {
     try {
       const newMessages = await discussionApi.send(sessionId, content)
       setMessages((m) => [...m.filter((x) => x.id !== tempId), ...newMessages])
+      readAloud(newMessages)
     } catch (e) {
       setMessages((m) => m.filter((x) => x.id !== tempId))
       setInput(content)
@@ -68,8 +123,11 @@ export default function DiscussionPage() {
     try {
       const res = await discussionApi.flagError(sessionId, messageId)
       setFlagged((f) => ({ ...f, [messageId]: res.correct ? 'correct' : 'wrong' }))
-      setToast({ ok: res.correct, text: res.feedback + (res.achievementUnlocked ? ' 🏅 Bạn vừa nhận huy hiệu Thám tử bắt lỗi!' : '') })
-      setTimeout(() => setToast(null), 5000)
+      setToast({
+        ok: res.correct,
+        text: res.feedback + (res.explanation ? ' ' + res.explanation : '') + (res.achievementUnlocked ? ' 🏅 Bạn vừa nhận huy hiệu Thám tử bắt lỗi!' : ''),
+      })
+      setTimeout(() => setToast(null), 9000)
     } catch (e) {
       setError(getErrorMessage(e))
     }
@@ -91,6 +149,9 @@ export default function DiscussionPage() {
   // Thứ tự hiển thị: Thầy AI, Tuấn Kiệt, Bảo An
   const order = (id) => { const i = AGENTS_INTRO.findIndex((a) => a.id === id); return i < 0 ? 99 : i }
   const agents = [...session.agents].sort((a, b) => order(a.agentId) - order(b.agentId))
+  const last = messages[messages.length - 1]
+  const choices = last?.senderType === 'AGENT' && last.quickReplies?.length ? last.quickReplies : FALLBACK_REPLIES
+  const hasRealChoices = last?.senderType === 'AGENT' && last.quickReplies?.length > 0
 
   return (
     <div className="w-full px-margin-mobile py-space-md md:px-margin">
@@ -107,11 +168,20 @@ export default function DiscussionPage() {
             {ended ? 'Phiên đã kết thúc' : 'Phòng thảo luận trực tiếp (3 AI đang hỗ trợ)'}
           </span>
         </div>
-        {!ended && (
-          <button type="button" onClick={endSession} className="btn-secondary py-1.5 text-label-md">
-            <Icon name="logout" className="text-[18px] text-secondary" /> Kết thúc & tóm tắt
+        <div className="flex flex-wrap items-center gap-space-sm">
+          <button type="button" onClick={toggleVoice} title="Bật / tắt giọng đọc của 3 AI"
+            className={`flex items-center gap-1 rounded-xl px-space-md py-1.5 text-label-md ${voiceOn ? 'bg-tertiary-fixed text-on-tertiary-fixed' : 'bg-surface-container text-on-surface-variant'}`}>
+            <Icon name={voiceOn ? 'volume_up' : 'volume_off'} className="text-[18px]" /> {voiceOn ? 'Đang đọc to' : 'Tắt tiếng'}
           </button>
-        )}
+          <Link to={`/stage/${session.lessonId}`} className="btn-primary py-1.5 text-label-md">
+            <Icon name="bolt" filled className="text-[18px]" /> Vào thử thách ải
+          </Link>
+          {!ended && (
+            <button type="button" onClick={endSession} className="btn-secondary py-1.5 text-label-md">
+              <Icon name="logout" className="text-[18px] text-secondary" /> Kết thúc & tóm tắt
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
@@ -181,7 +251,7 @@ export default function DiscussionPage() {
                 )
               })}
               <div className="flex items-center gap-2 rounded-xl bg-primary-fixed/70 px-space-sm py-1 shadow-sm">
-                <img src={user?.avatarUrl || studentAvatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+                <Pet code={user?.activePetCode} size={32} />
                 <div className="hidden flex-col pr-1 sm:flex">
                   <span className="text-label-sm font-bold leading-tight text-on-primary-fixed">{user?.fullName}</span>
                   <span className="text-[10px] font-bold text-on-primary-fixed-variant">Bạn (Lớp {user?.gradeLevel})</span>
@@ -200,7 +270,7 @@ export default function DiscussionPage() {
             {messages.map((m) =>
               m.senderType === 'STUDENT' ? (
                 <div key={m.id} className="ml-auto flex max-w-[85%] flex-row-reverse items-start gap-space-sm">
-                  <img src={user?.avatarUrl || studentAvatar} alt="" className="h-10 w-10 flex-shrink-0 rounded-full object-cover shadow-sm" />
+                  <span className="flex-shrink-0 rounded-full bg-primary-fixed/60"><Pet code={user?.activePetCode} size={40} /></span>
                   <div className="flex flex-col items-end">
                     <div className="mb-1 flex items-center gap-2">
                       <span className="text-label-sm text-on-surface-variant">{formatTime(m.createdAt)}</span>
@@ -212,7 +282,8 @@ export default function DiscussionPage() {
                   </div>
                 </div>
               ) : (
-                <AgentMessage key={m.id} m={m} flagged={flagged[m.id]} onFlag={() => flagError(m.id)} disabled={ended} />
+                <AgentMessage key={m.id} m={m} flagged={flagged[m.id]} onFlag={() => flagError(m.id)} disabled={ended}
+                  speaking={speakingId === m.id} onSpeak={() => speakOne(m)} />
               ),
             )}
 
@@ -228,13 +299,21 @@ export default function DiscussionPage() {
             )}
 
             {!ended && !sending && (
-              <div className="flex flex-wrap gap-space-sm pl-0 pt-space-xs sm:pl-12">
-                {QUICK_REPLIES.map((q) => (
-                  <button key={q.text} type="button" onClick={() => send(q.text)}
-                    className="flex items-center gap-1.5 rounded-xl bg-surface-container px-space-md py-2 text-label-md text-primary shadow-sm transition-all hover:bg-primary-fixed hover:text-on-primary-fixed active:scale-95">
-                    <Icon name={q.icon} className="text-[18px]" /> {q.text}
-                  </button>
-                ))}
+              <div className="pop-in flex flex-col gap-space-sm pl-0 pt-space-xs sm:pl-12">
+                <span className="flex items-center gap-1 text-label-md text-on-surface-variant">
+                  <Icon name="touch_app" className="text-[18px] text-primary" /> {hasRealChoices ? 'Bấm chọn câu trả lời của em:' : 'Em muốn hỏi gì tiếp?'}
+                </span>
+                <div className={`grid gap-space-sm ${hasRealChoices ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 sm:grid-cols-3'}`}>
+                  {choices.map((text, i) => (
+                    <button key={text} type="button" onClick={() => send(text)}
+                      className="flex items-start gap-space-sm rounded-2xl border-2 border-primary-fixed bg-surface-container-lowest px-space-md py-space-sm text-left text-body-md text-on-surface shadow-[0_3px_0_0_#b4c5ff] transition-all hover:border-primary hover:bg-primary-fixed/40 active:translate-y-[2px] active:shadow-none">
+                      <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-label-sm font-extrabold text-on-primary">
+                        {String.fromCharCode(65 + i)}
+                      </span>
+                      <span>{text}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             <div ref={bottomRef} />
@@ -257,13 +336,13 @@ export default function DiscussionPage() {
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Nhập câu trả lời hoặc phản biện của bạn..."
+                  placeholder="Hoặc tự gõ câu trả lời của em..."
                   className="h-12 flex-1 rounded-xl bg-surface-container-low px-space-md text-body-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary"
                   maxLength={2000}
                 />
                 <button type="submit" disabled={sending || !input.trim()}
                   className="flex h-12 flex-shrink-0 items-center gap-2 rounded-xl bg-primary-container px-space-lg text-label-lg text-on-primary shadow-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50">
-                  <span className="hidden sm:inline">Gửi phản biện</span>
+                  <span className="hidden sm:inline">Gửi</span>
                   <Icon name="send" className="text-[20px]" />
                 </button>
               </form>
@@ -275,7 +354,7 @@ export default function DiscussionPage() {
   )
 }
 
-function AgentMessage({ m, flagged, onFlag, disabled }) {
+function AgentMessage({ m, flagged, onFlag, disabled, speaking, onSpeak }) {
   const ui = agentUi(m.agentId, m.agentType)
   return (
     <div className="flex max-w-[90%] items-start gap-space-sm sm:max-w-[85%]">
@@ -285,8 +364,12 @@ function AgentMessage({ m, flagged, onFlag, disabled }) {
           <span className={`text-label-md font-bold ${ui.text}`}>{m.agentName}</span>
           <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${ui.chip}`}>{ui.role}</span>
           <span className="text-label-sm text-on-surface-variant">{formatTime(m.createdAt)}</span>
+          <button type="button" onClick={onSpeak} title="Nghe lại"
+            className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${speaking ? 'bg-tertiary-container text-white' : 'text-on-surface-variant hover:bg-surface-container'}`}>
+            <Icon name={speaking ? 'graphic_eq' : 'volume_up'} className="text-[16px]" />
+          </button>
         </div>
-        <div className={`rounded-2xl rounded-tl-sm p-space-md text-body-md leading-relaxed text-on-surface shadow-sm ${ui.bubble}`}>
+        <div className={`rounded-2xl rounded-tl-sm p-space-md text-body-md leading-relaxed text-on-surface shadow-sm ${ui.bubble} ${speaking ? 'ring-2 ring-tertiary-container' : ''}`}>
           {m.content}
         </div>
         <div className="mt-1 flex items-center gap-space-md pl-1">

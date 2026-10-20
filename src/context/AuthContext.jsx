@@ -40,6 +40,9 @@ export function AuthProvider({ children }) {
     return res.user
   }
 
+  /** Cập nhật nhanh vài trường của user (xu, xp, thú...) sau khi qua ải, không cần gọi lại /me */
+  const patchUser = useCallback((fields) => setUser((u) => (u ? { ...u, ...fields } : u)), [])
+
   const login = async (email, password) => handleAuth(await authApi.login(email, password))
   const register = async (payload) => handleAuth(await authApi.register(payload))
 
@@ -49,7 +52,7 @@ export function AuthProvider({ children }) {
   }
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, refreshUser }),
+    () => ({ user, loading, login, register, logout, refreshUser, patchUser }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [user, loading, refreshUser],
   )

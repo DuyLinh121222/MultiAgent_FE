@@ -68,6 +68,32 @@ export const studentApi = {
   report: (payload) => post('/api/reports', payload),
 }
 
+export const gameApi = {
+  map: () => get('/api/game/map'),
+  profile: () => get('/api/game/profile'),
+  stage: (lessonId) => get(`/api/game/stages/${lessonId}`),
+  submitStage: (lessonId, answers) => post(`/api/game/stages/${lessonId}/submit`, { answers }),
+  boss: (topicId) => get(`/api/game/bosses/${topicId}`),
+  submitBoss: (topicId, answers) => post(`/api/game/bosses/${topicId}/submit`, { answers }),
+  pets: () => get('/api/game/pets'),
+  starterPets: () => get('/api/game/pets/starters'),
+  buyPet: (code) => post(`/api/game/pets/${code}/buy`),
+  setActivePet: (code) => put(`/api/game/pets/${code}/active`),
+  onboarding: (payload) => post('/api/game/onboarding', payload),
+}
+
+export const leadApi = {
+  create: (payload) => post('/api/leads', payload),
+}
+
+export const ttsApi = {
+  status: () => get('/api/tts/status'),
+  /** Trả về Blob mp3, hoặc null nếu BE chưa cấu hình Google TTS (204) */
+  speak: (agentId, text) =>
+    client.post('/api/tts', { agentId, text }, { responseType: 'blob' })
+      .then((r) => (r.status === 204 ? null : r.data)),
+}
+
 export const lecturerApi = {
   pendingLessons: () => get('/api/lecturer/lessons/pending'),
   pendingQuestions: () => get('/api/lecturer/questions/pending'),

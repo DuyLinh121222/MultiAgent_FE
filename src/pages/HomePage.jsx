@@ -1,345 +1,297 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Icon from '../components/common/Icon'
 import Loading from '../components/common/Loading'
 import ErrorBox from '../components/common/ErrorBox'
-import ProgressBar from '../components/common/ProgressBar'
-import AgentAvatar from '../components/common/AgentAvatar'
-import { discussionApi, learningApi } from '../api/services'
+import Pet from '../components/game/Pet'
+import { Castle, Chest, Coin, Decor, Star, Stars, chapterTheme } from '../components/game/GameArt'
+import { gameApi } from '../api/services'
 import { getErrorMessage } from '../api/client'
-import { AGENTS_INTRO } from '../constants/agents'
+import { useAuth } from '../context/AuthContext'
 
-const GRADE_DESC = { 6: 'Số tự nhiên, Phân số', 7: 'Số hữu tỉ, Tam giác', 8: 'Hằng đẳng thức, Phương trình', 9: 'Căn thức, Thi vào 10' }
-const TOPIC_COLORS = [
-  { chip: 'bg-primary-fixed text-primary', bar: 'bg-primary', text: 'text-primary' },
-  { chip: 'bg-secondary-fixed text-secondary', bar: 'bg-secondary-container', text: 'text-secondary' },
-  { chip: 'bg-tertiary-fixed text-tertiary', bar: 'bg-tertiary-container', text: 'text-tertiary' },
-]
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII']
+// Lệch ngang của các ải theo đường zigzag (% so với tâm)
+const ZIGZAG = [0, 18, 24, 8, -14, -22, -10]
+const STEP_Y = 156
+const TOP_Y = 100
 
+/**
+ * Trang chủ = Bản đồ ải. Chỉ 1 nút chính "Chơi ải tiếp theo", còn lại là bản đồ để học sinh tự khám phá.
+ */
 export default function HomePage() {
   const navigate = useNavigate()
-  const [data, setData] = useState(null)
-  const [paths, setPaths] = useState([])
-  const [viewPath, setViewPath] = useState(null)
+  const location = useLocation()
+  const { patchUser } = useAuth()
+  const [map, setMap] = useState(null)
   const [error, setError] = useState('')
-  const [starting, setStarting] = useState(false)
+  const [toast, setToast] = useState('')
+  const currentRef = useRef(null)
+  const welcome = location.state?.welcome
 
   const load = useCallback(async () => {
     setError('')
     try {
-      const [dash, allPaths] = await Promise.all([learningApi.dashboard(), learningApi.paths()])
-      setData(dash)
-      setPaths(allPaths)
-      setViewPath(dash.learningPath)
+      const m = await gameApi.map()
+      setMap(m)
+      patchUser({ coins: m.profile.coins, xp: m.profile.xp, activePetCode: m.profile.activePetCode })
     } catch (e) {
       setError(getErrorMessage(e))
     }
-  }, [])
+  }, [patchUser])
 
   useEffect(() => { load() }, [load])
 
-  const selectGrade = async (grade) => {
-    const p = paths.find((x) => x.gradeLevel === grade)
-    if (!p) return
-    if (grade === data.gradeLevel) return setViewPath(data.learningPath)
-    try {
-      setViewPath(await learningApi.path(p.id))
-    } catch (e) {
-      setError(getErrorMessage(e))
+  // Cuộn tới ải đang chơi
+  useEffect(() => {
+    if (map && currentRef.current) {
+      setTimeout(() => currentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)
     }
+  }, [map])
+
+  const openStage = (type, id, status) => {
+    if (status === 'LOCKED') {
+      setToast('Ải này còn khoá. Qua ải phía trước để mở nhé!')
+      setTimeout(() => setToast(''), 2500)
+      return
+    }
+    navigate(type === 'BOSS' ? `/boss/${id}` : `/stage/${id}`)
   }
 
-  const startDiscussion = async (lessonId) => {
-    setStarting(true)
-    try {
-      const session = await discussionApi.start(lessonId)
-      navigate(`/study-room/${session.id}`)
-    } catch (e) {
-      setError(getErrorMessage(e))
-      setStarting(false)
-    }
-  }
+  if (!map && !error) return <Loading text="Đang mở bản đồ ải..." />
+  if (!map) return <div className="page"><ErrorBox message={error} onRetry={load} /></div>
 
-  if (!data && !error) return <Loading />
-  if (!data) return <div className="page"><ErrorBox message={error} onRetry={load} /></div>
-
-  const percent = data.totalLessons ? Math.round((data.completedLessons * 100) / data.totalLessons) : 0
-  const firstLesson = data.learningPath?.topics?.flatMap((t) => t.lessons).find((l) => l.progressStatus !== 'COMPLETED')
-  const cont = data.continueLesson || (firstLesson && { lessonId: firstLesson.id, lessonTitle: firstLesson.title, topicName: '', progressPercent: firstLesson.progressPercent })
+  const p = map.profile
+  const nextPath = map.nextStageType === 'BOSS' ? `/boss/${map.nextStageId}` : `/stage/${map.nextStageId}`
+  const progress = map.totalStages ? Math.round((map.clearedStages * 100) / map.totalStages) : 0
 
   return (
-    <div className="page">
-      <ErrorBox message={error} />
-
-      {/* Lời chào + mục tiêu */}
-      <section className="flex flex-col items-start justify-between gap-space-lg rounded-xl bg-surface-container-lowest p-space-lg shadow-sm lg:flex-row lg:items-center">
-        <div className="flex max-w-2xl flex-col gap-space-xs">
-          <div className="flex flex-wrap items-center gap-space-sm">
-            <span className="chip bg-primary-fixed text-on-primary-fixed">
-              <Icon name="school" className="text-[16px]" /> Toán Lớp {data.gradeLevel} • Chương trình GDPT mới
-            </span>
-            <span className="chip bg-secondary-fixed text-on-secondary-fixed">
-              <Icon name="military_tech" className="text-[16px] text-secondary" /> {data.totalPoints} điểm thành tích
-            </span>
-            {data.subscription ? (
-              <span className="chip bg-tertiary-fixed text-on-tertiary-fixed">
-                <Icon name="schedule" className="text-[16px]" /> {data.subscription.trial ? 'Dùng thử' : data.subscription.planName}: còn {data.subscription.daysLeft} ngày
-              </span>
-            ) : (
-              <Link to="/pricing" className="chip bg-error-container text-on-error-container">
-                <Icon name="error" className="text-[16px]" /> Gói học đã hết hạn - gia hạn ngay
-              </Link>
-            )}
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-space-lg px-margin-mobile py-space-lg md:px-margin">
+      {/* Hồ sơ người chơi */}
+      <section className="flex flex-col gap-space-md rounded-[28px] bg-surface-container-lowest p-space-md shadow-sm sm:flex-row sm:items-center sm:p-space-lg">
+        <div className="flex flex-1 items-center gap-space-md">
+          <Link to="/pets" className="relative flex-shrink-0 rounded-3xl bg-gradient-to-b from-primary-fixed to-surface-container-low p-1" title="Đổi bạn đồng hành">
+            <Pet code={p.activePetCode} size={76} />
+            <span className="absolute -bottom-1 -right-1 rounded-full bg-primary px-2 py-0.5 text-label-sm text-on-primary shadow">Cấp {p.level}</span>
+          </Link>
+          <div className="min-w-0 flex-1">
+            <div className="text-label-sm uppercase tracking-wider text-on-surface-variant">{map.pathName} • Học kỳ 1</div>
+            <h1 className="truncate text-headline-md text-on-surface">Chào {p.fullName}!</h1>
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="h-3 flex-1 overflow-hidden rounded-full bg-surface-container">
+                <div className="h-full rounded-full bg-gradient-to-r from-[#7ee0c3] to-tertiary-container transition-all" style={{ width: `${(p.xpInLevel * 100) / p.xpPerLevel}%` }} />
+              </div>
+              <span className="whitespace-nowrap text-label-sm text-on-surface-variant">{p.xpInLevel}/{p.xpPerLevel} XP</span>
+            </div>
           </div>
-          <h1 className="mt-space-xs text-headline-lg-mobile tracking-tight text-on-surface md:text-headline-lg">
-            Chào {data.fullName}! Hôm nay bạn muốn học cùng Thầy AI và hai bạn học nào?
-          </h1>
-          <p className="text-body-md text-on-surface-variant">Chọn một bài học, vào phòng thảo luận và thử bắt lỗi sai của bạn AI nhé!</p>
         </div>
-        <div className="flex flex-shrink-0 items-center gap-space-md self-stretch rounded-xl bg-surface-container-low px-space-lg py-space-md sm:self-auto">
-          <div className="flex flex-col">
-            <span className="text-label-sm uppercase tracking-wider text-on-surface-variant">Tiến độ lộ trình</span>
-            <span className="text-headline-sm font-bold text-primary">{data.completedLessons} / {data.totalLessons} bài</span>
-          </div>
-          <Ring value={percent} />
+        <div className="flex items-center gap-space-sm">
+          <StatPill icon={<Coin size={22} />} value={p.coins} label="xu" />
+          <StatPill icon={<Star size={22} />} value={p.totalStars} label="sao" />
+          <StatPill icon={<Icon name="flag" filled className="text-[22px] text-tertiary" />} value={`${progress}%`} label="bản đồ" />
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-space-lg lg:grid-cols-12">
-        <section className="flex flex-col gap-space-lg lg:col-span-8">
-          {/* Bài học dở dang */}
-          <div className="card flex flex-col gap-space-lg">
-            <div className="flex flex-col justify-between gap-space-md sm:flex-row sm:items-center">
-              <div className="flex items-center gap-space-sm">
-                <span className="flex items-center justify-center rounded-xl bg-primary-fixed p-space-sm text-primary">
-                  <Icon name="functions" className="text-[24px]" />
-                </span>
-                <div>
-                  <span className="text-label-sm font-semibold text-on-surface-variant">{data.continueLesson ? 'BÀI HỌC DỞ DANG' : 'BÀI HỌC TIẾP THEO'}</span>
-                  <h2 className="text-headline-md text-on-surface">{cont ? cont.lessonTitle : 'Bạn đã học hết lộ trình 🎉'}</h2>
-                </div>
+      {/* Nút chính duy nhất */}
+      {map.nextStageId ? (
+        <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-primary to-primary-container p-space-lg text-on-primary shadow-[0_10px_30px_-10px_rgba(0,74,198,0.6)]">
+          <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-white/10" />
+          <div className="relative flex flex-col items-start justify-between gap-space-md sm:flex-row sm:items-center">
+            <div>
+              <div className="text-label-md uppercase tracking-wider text-primary-fixed">
+                {welcome ? 'Bắt đầu hành trình' : 'Ải tiếp theo'}
               </div>
-              {cont && (
-                <span className="self-start rounded-full bg-surface-container px-space-md py-space-xs text-label-sm text-on-surface sm:self-auto">
-                  Đã học {cont.progressPercent}%
-                </span>
-              )}
+              <div className="mt-0.5 text-headline-md font-extrabold">{map.nextStageTitle}</div>
+              <div className="mt-0.5 text-body-sm text-primary-fixed">Học lý thuyết 5 phút → thảo luận cùng 3 AI → 3 câu thử thách</div>
             </div>
-
-            <div className="flex flex-col gap-space-sm rounded-xl bg-surface-container-low p-space-md">
-              <div className="flex items-center justify-between">
-                <span className="text-label-md font-semibold text-on-surface-variant">Phòng học thảo luận 3 AI</span>
-                <span className="inline-flex items-center gap-1 text-label-sm font-bold text-tertiary">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-tertiary-container" /> 3 AI đang trực tuyến
-                </span>
-              </div>
-              <div className="grid grid-cols-1 gap-space-sm pt-space-xs sm:grid-cols-3">
-                {AGENTS_INTRO.map((a) => (
-                  <div key={a.id} className="flex items-center gap-space-sm rounded-xl bg-surface-container-lowest p-space-sm shadow-sm">
-                    <AgentAvatar agentId={a.id} size="w-9 h-9" />
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-label-md font-bold text-on-surface">{a.name}</span>
-                      <span className="truncate text-body-sm text-on-surface-variant">{a.desc}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center gap-space-md pt-space-xs sm:flex-row">
-              <button type="button" disabled={!cont || starting} onClick={() => startDiscussion(cont.lessonId)}
-                className="btn-primary w-full px-space-xl py-space-md shadow-[0_3px_0_0_#003ea8] sm:w-auto">
-                <Icon name="forum" className="text-[22px]" />
-                <span>{starting ? 'Đang mở phòng...' : 'Vào phòng học nhóm AI ngay'}</span>
-              </button>
-              {cont && (
-                <Link to={`/lessons/${cont.lessonId}`} className="btn-secondary w-full py-space-md sm:w-auto">
-                  <Icon name="menu_book" className="text-[20px]" /> Xem bài giảng
-                </Link>
-              )}
-              <Link to="/photo-solver" className="btn-secondary w-full py-space-md sm:w-auto">
-                <Icon name="photo_camera" className="text-[20px]" /> Quét đề tập vở
-              </Link>
-            </div>
+            <button type="button" onClick={() => navigate(nextPath)}
+              className="flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl bg-secondary-container px-space-xl py-space-md text-headline-sm font-extrabold text-on-secondary-container shadow-[0_5px_0_0_#b86e00] transition-all hover:brightness-105 active:translate-y-[3px] active:shadow-[0_2px_0_0_#b86e00]">
+              <Icon name="play_arrow" filled className="text-[28px]" /> Chơi ngay
+            </button>
           </div>
-
-          {/* Chọn khối lớp */}
-          <div className="flex flex-col gap-space-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-headline-sm text-on-surface">Lộ trình Toán THCS</h3>
-              <span className="text-body-sm text-on-surface-variant">Chuyển khối để ôn luyện sớm hoặc xem lại</span>
-            </div>
-            <div className="grid grid-cols-2 gap-space-sm sm:grid-cols-4">
-              {[6, 7, 8, 9].map((g) => {
-                const active = viewPath?.gradeLevel === g
-                const isMine = data.gradeLevel === g
-                return (
-                  <button key={g} type="button" onClick={() => selectGrade(g)}
-                    className={`flex items-center justify-between rounded-xl px-space-md py-space-md text-left transition-all ${
-                      active ? 'bg-primary text-on-primary shadow-md' : 'bg-surface-container-lowest text-on-surface shadow-sm hover:bg-surface-container'
-                    }`}>
-                    <div>
-                      <div className="text-headline-sm">Lớp {g}</div>
-                      <div className={`text-body-sm ${active ? 'text-primary-fixed' : 'text-on-surface-variant'}`}>
-                        {GRADE_DESC[g]}{isMine ? ' (Hiện tại)' : ''}
-                      </div>
-                    </div>
-                    <Icon name={active ? 'verified' : g < data.gradeLevel ? 'check_circle' : 'lock_open'}
-                      className={active ? 'text-tertiary-fixed' : 'text-outline-variant'} />
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Các chủ đề */}
-          {viewPath && (
-            <div className="grid grid-cols-1 gap-space-lg md:grid-cols-2">
-              {viewPath.topics.map((t, idx) => {
-                const c = TOPIC_COLORS[idx % TOPIC_COLORS.length]
-                const p = t.totalLessons ? Math.round((t.completedLessons * 100) / t.totalLessons) : 0
-                return (
-                  <div key={t.id} className="card flex flex-col justify-between gap-space-md">
-                    <div className="flex flex-col gap-space-sm">
-                      <div className="flex items-center justify-between">
-                        <span className={`chip font-bold ${c.chip}`}>
-                          <Icon name="calculate" className="text-[16px]" /> Chủ đề {t.orderIndex}
-                        </span>
-                        <span className={`text-label-lg font-bold ${c.text}`}>{p}%</span>
-                      </div>
-                      <h3 className="text-headline-sm text-on-surface">{t.name}</h3>
-                      <p className="text-body-sm text-on-surface-variant">{t.description}</p>
-                      <ProgressBar value={p} color={c.bar} className="my-space-xs" />
-                      {t.masteryScore != null && (
-                        <span className={`chip w-fit ${Number(t.masteryScore) < 50 ? 'bg-error-container text-on-error-container' : 'bg-secondary-fixed text-on-secondary-fixed'}`}>
-                          <Icon name="insights" className="text-[14px]" /> Mức nắm vững {Math.round(t.masteryScore)}%
-                        </span>
-                      )}
-                      <div className="flex flex-wrap gap-space-xs pt-space-xs">
-                        {t.lessons.length === 0 && <span className="text-body-sm text-outline">Bài học đang được biên soạn</span>}
-                        {t.lessons.map((l) => (
-                          <Link key={l.id} to={`/lessons/${l.id}`}
-                            className={`rounded-md px-space-sm py-space-xs text-label-sm transition-colors ${
-                              l.progressStatus === 'COMPLETED'
-                                ? 'bg-tertiary-fixed/50 text-on-tertiary-fixed'
-                                : l.progressStatus === 'IN_PROGRESS'
-                                  ? 'bg-surface-container-highest font-semibold text-primary'
-                                  : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
-                            }`}>
-                            {l.title}{l.progressStatus === 'COMPLETED' ? ' ✓' : l.progressStatus === 'IN_PROGRESS' ? ' • Đang học' : ''}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                    {t.lessons.length > 0 && (
-                      <div className="flex items-center gap-space-sm pt-space-sm">
-                        <Link to={`/lessons/${(t.lessons.find((l) => l.progressStatus !== 'COMPLETED') || t.lessons[0]).id}`}
-                          className="flex-1 rounded-xl bg-primary px-space-md py-space-sm text-center text-label-lg text-on-primary transition-colors hover:bg-primary-container">
-                          Học bài
-                        </Link>
-                        <Link to="/quizzes" className="btn-secondary">Luyện tập</Link>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
         </section>
+      ) : map.totalStages > 0 ? (
+        <section className="rounded-[28px] bg-tertiary-fixed/60 p-space-lg text-center">
+          <div className="text-headline-md text-on-tertiary-fixed">🎉 Bạn đã phá đảo toàn bộ bản đồ!</div>
+          <p className="text-body-md text-on-tertiary-fixed-variant">Chơi lại các ải chưa đủ 3 sao để kiếm thêm xu nhé.</p>
+        </section>
+      ) : null}
 
-        {/* Cột phải */}
-        <aside className="flex flex-col gap-space-lg lg:col-span-4">
-          <div className="card flex flex-col gap-space-md">
-            <div className="flex items-center justify-between">
-              <span className="text-label-sm font-bold uppercase tracking-wider text-on-surface-variant">Phần kiến thức cần ôn</span>
-              <Icon name="insights" className="text-[20px] text-primary" />
-            </div>
-            {data.weaknesses.length === 0 ? (
-              <p className="text-body-sm text-on-surface-variant">Chưa phát hiện điểm yếu. Làm quiz để Thầy AI đánh giá nhé!</p>
-            ) : (
-              data.weaknesses.map((w) => (
-                <div key={w.id} className="flex flex-col gap-space-xs rounded-xl bg-surface-container-low p-space-md">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-label-lg text-on-surface">{w.topicName}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-label-sm ${
-                      w.severity === 'HIGH' ? 'bg-error-container text-on-error-container' : w.severity === 'MEDIUM' ? 'bg-secondary-fixed text-on-secondary-fixed' : 'bg-tertiary-fixed text-on-tertiary-fixed'
-                    }`}>
-                      {w.severity === 'HIGH' ? 'Cần ôn gấp' : w.severity === 'MEDIUM' ? 'Cần ôn' : 'Khá ổn'}
-                    </span>
-                  </div>
-                  <ProgressBar value={Number(w.masteryScore)} color={w.severity === 'HIGH' ? 'bg-error' : 'bg-secondary-container'} />
-                  <span className="text-body-sm text-on-surface-variant">Mức nắm vững {Math.round(w.masteryScore)}%</span>
-                </div>
-              ))
-            )}
-            <Link to="/quizzes" className="btn-primary w-full">
-              <Icon name="quiz" className="text-[18px]" /> Làm quiz củng cố
-            </Link>
-          </div>
+      {map.chapters.length === 0 || map.totalStages === 0 ? (
+        <div className="card text-center">
+          <Pet code={p.activePetCode} size={110} className="mx-auto" />
+          <h2 className="mt-space-sm text-headline-sm">Bản đồ ải lớp {map.gradeLevel} đang được xây</h2>
+          <p className="text-body-md text-on-surface-variant">Trong lúc chờ, em có thể vào Phòng học AI hoặc Luyện tập nhé.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-space-lg">
+          {map.chapters.map((c, idx) => (
+            <ChapterLand key={c.topicId} chapter={c} index={idx} petCode={p.activePetCode} onOpen={openStage}
+              currentRef={currentRef} welcome={welcome} />
+          ))}
+        </div>
+      )}
 
-          <div className="card flex flex-col gap-space-md">
-            <div className="flex items-center justify-between">
-              <h3 className="text-headline-sm text-on-surface">Kết quả học tập</h3>
-              <Icon name="bar_chart" className="text-[20px] text-primary" />
-            </div>
-            <div className="grid grid-cols-2 gap-space-sm">
-              <Stat label="Bài đã hoàn thành" value={data.completedLessons} />
-              <Stat label="Điểm thành tích" value={data.totalPoints} highlight />
-            </div>
-            <Link to="/achievements" className="flex items-center justify-between rounded-xl bg-surface-container p-space-sm">
-              <span className="flex items-center gap-space-sm text-label-md text-on-surface">
-                <Icon name="military_tech" className="text-[22px] text-secondary" /> Huy hiệu đã đạt: {data.achievementCount}
-              </span>
-              <Icon name="chevron_right" className="text-on-surface-variant" />
-            </Link>
-            <Link to="/notifications" className="flex items-center justify-between rounded-xl bg-surface-container p-space-sm">
-              <span className="flex items-center gap-space-sm text-label-md text-on-surface">
-                <Icon name="notifications" className="text-[22px] text-primary" /> Thông báo chưa đọc: {data.unreadNotifications}
-              </span>
-              <Icon name="chevron_right" className="text-on-surface-variant" />
-            </Link>
+      {/* Công cụ phụ, để nhỏ phía dưới cho đỡ rối */}
+      <section className="grid grid-cols-1 gap-space-sm sm:grid-cols-3">
+        <ToolLink to="/study-room" icon="forum" title="Phòng học 3 AI" desc="Hỏi bài, bắt lỗi bạn AI" />
+        <ToolLink to="/photo-solver" icon="photo_camera" title="Giải bằng ảnh" desc="Chụp đề trong vở" />
+        <ToolLink to="/quizzes" icon="insights" title="Ôn điểm yếu" desc="Quiz theo phần còn yếu" />
+      </section>
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl bg-inverse-surface px-space-lg py-space-sm text-label-lg text-inverse-on-surface shadow-lg pop-in">
+          <Icon name="lock" className="mr-1 align-middle text-[18px]" /> {toast}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ChapterLand({ chapter, index, petCode, onOpen, currentRef, welcome }) {
+  const theme = chapterTheme(index)
+  const nodes = [
+    ...chapter.stages.map((s) => ({ type: 'LESSON', id: s.lessonId, ...s })),
+    ...(chapter.boss ? [{ type: 'BOSS', id: chapter.boss.topicId, ...chapter.boss, title: 'Ải trùm' }] : []),
+  ]
+  const height = TOP_Y + nodes.length * STEP_Y - 20
+  const points = nodes.map((_, i) => ({
+    x: 50 + (nodes[i].type === 'BOSS' ? 0 : ZIGZAG[(i + index * 2) % ZIGZAG.length]),
+    y: TOP_Y + i * STEP_Y,
+  }))
+  const d = points.reduce((acc, pt, i) => {
+    if (i === 0) return `M ${pt.x} ${pt.y}`
+    const prev = points[i - 1]
+    return `${acc} C ${prev.x} ${prev.y + STEP_Y * 0.55} ${pt.x} ${pt.y - STEP_Y * 0.55} ${pt.x} ${pt.y}`
+  }, '')
+  const short = chapter.name.split('. ')
+  const title = short.length > 1 ? short.slice(1).join('. ') : chapter.name
+
+  return (
+    <section className={`relative overflow-hidden rounded-[32px] bg-gradient-to-b ${theme.bg} shadow-sm`}>
+      {/* Băng rôn tên vùng đất */}
+      <div className="relative z-10 flex flex-col items-center px-space-md pt-space-lg text-center">
+        <div className={`ribbon bg-gradient-to-r ${theme.ribbon} px-space-xl py-2 text-white shadow-md`}>
+          <div className="whitespace-nowrap text-label-sm uppercase tracking-[0.18em] opacity-90">
+            Chương {ROMAN[chapter.orderIndex - 1] || chapter.orderIndex}<span className="hidden sm:inline"> • {theme.land}</span>
           </div>
-        </aside>
+        </div>
+        <h2 className="mt-space-sm max-w-lg text-headline-sm text-on-surface sm:text-headline-md">{title}</h2>
+        <div className="mt-1 flex items-center gap-1 text-label-md" style={{ color: theme.accent }}>
+          <Star size={16} /> {chapter.starsEarned}/{chapter.starsTotal} sao
+        </div>
       </div>
 
-      {/* Gợi ý giải bằng ảnh */}
-      <section className="flex flex-col items-center justify-between gap-space-md rounded-xl bg-surface-container-high p-space-md sm:p-space-lg md:flex-row">
-        <div className="flex items-center gap-space-md">
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary">
-            <Icon name="document_scanner" className="text-[28px]" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-headline-sm text-on-surface">Gặp bài toán khó trong sách giáo khoa hoặc đề cương?</span>
-            <span className="text-body-md text-on-surface-variant">Chụp ảnh bài tập, Thầy AI và hai bạn học sẽ giải từng bước và chỉ ra lỗi sai.</span>
+      <Decor type={theme.deco} side="left" className="pointer-events-none absolute -left-6 top-28 h-40 w-40 opacity-90 sm:left-2 sm:h-52 sm:w-52" />
+      <Decor type={theme.deco} side="right" className="pointer-events-none absolute -right-6 bottom-20 h-40 w-40 opacity-90 sm:right-2 sm:h-52 sm:w-52" />
+
+      <div className="relative mx-auto w-full max-w-md" style={{ height }}>
+        <svg className="absolute inset-0 h-full w-full" viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" aria-hidden="true">
+          <path d={d} fill="none" stroke={theme.path} strokeWidth="22" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity="0.55" />
+          <path d={d} fill="none" stroke="#ffffff" strokeWidth="5" strokeDasharray="2 14" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+
+        {nodes.map((n, i) => {
+          const pt = points[i]
+          const isCurrent = n.current
+          return (
+            <div key={n.id} ref={isCurrent ? currentRef : undefined}
+              className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${pt.x}%`, top: pt.y }}>
+              {n.type === 'BOSS'
+                ? <BossNode node={n} onOpen={onOpen} />
+                : <LevelNode node={n} onOpen={onOpen} accent={theme.accent} />}
+              {isCurrent && (
+                // Thú đồng hành đứng cạnh ải hiện tại (phía còn trống của đường zigzag)
+                <div className={`pointer-events-none absolute -top-[30px] flex flex-col items-center ${
+                  pt.x > 55 ? 'right-[calc(100%-6px)]' : 'left-[calc(100%-6px)]'}`}>
+                  <div className="mb-0.5 whitespace-nowrap rounded-xl bg-white px-2.5 py-1 text-label-sm font-bold text-primary shadow-md">
+                    {welcome && n.levelNumber === 1 ? 'Bấm vào đây để bắt đầu!' : 'Ải tiếp theo!'}
+                  </div>
+                  <Pet code={petCode} size={58} bounce />
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {!chapter.unlocked && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[150px] z-20 flex items-start justify-center bg-gradient-to-b from-white/0 via-white/25 to-white/40 pt-space-md">
+          <div className="flex items-center gap-2 rounded-2xl bg-white/95 px-space-md py-space-sm text-label-lg text-on-surface-variant shadow-md">
+            <Icon name="lock" filled className="text-[20px]" /> Qua ải trùm chương trước để mở vùng đất này
           </div>
         </div>
-        <Link to="/photo-solver" className="btn-primary whitespace-nowrap px-space-xl py-space-md">
-          <Icon name="camera_alt" className="text-[20px]" /> Tải ảnh lên giải ngay
-        </Link>
-      </section>
+      )}
+    </section>
+  )
+}
+
+function LevelNode({ node, onOpen, accent }) {
+  const cleared = node.status === 'CLEARED'
+  const locked = node.status === 'LOCKED'
+  const color = locked ? 'node-locked' : node.current ? 'node-current' : cleared ? 'node-cleared' : 'node-open'
+  return (
+    <div className="flex flex-col items-center">
+      <button type="button" onClick={() => onOpen('LESSON', node.lessonId, node.status)} title={node.title}
+        className={`node-3d ${color} ${node.current ? 'node-pulse' : ''} relative flex h-[76px] w-[76px] items-center justify-center rounded-full text-[28px] font-black`}
+        style={cleared || node.current ? undefined : { '--accent': accent }}>
+        {locked ? <Icon name="lock" filled className="text-[30px]" /> : node.levelNumber}
+        {cleared && node.stars === 3 && (
+          <span className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-tertiary-container text-white shadow">
+            <Icon name="check" className="text-[16px]" />
+          </span>
+        )}
+      </button>
+      {!locked && <Stars value={node.stars} size={16} className="mt-1" />}
+      <div className={`mt-0.5 line-clamp-2 w-[150px] rounded-lg bg-white/60 px-1.5 py-0.5 text-center text-[11px] font-bold leading-tight ${locked ? 'text-outline' : 'text-on-surface'}`}>
+        {node.title}
+      </div>
     </div>
   )
 }
 
-function Ring({ value }) {
-  const r = 15.9155
+function BossNode({ node, onOpen }) {
+  const cleared = node.status === 'CLEARED'
+  const locked = node.status === 'LOCKED'
   return (
-    <div className="relative flex h-14 w-14 items-center justify-center">
-      <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
-        <circle cx="18" cy="18" r={r} fill="none" stroke="currentColor" strokeWidth="3.5" className="text-surface-container" />
-        <circle cx="18" cy="18" r={r} fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"
-          strokeDasharray={`${value}, 100`} className="text-primary-container" />
-      </svg>
-      <span className="absolute text-label-md font-bold text-primary">{value}%</span>
-    </div>
+    <button type="button" onClick={() => onOpen('BOSS', node.topicId, node.status)}
+      className={`group flex flex-col items-center ${node.current ? 'boss-glow' : ''}`} title="Ải trùm cuối chương">
+      <div className="relative">
+        {cleared ? <Chest size={96} open /> : <Castle size={100} className={locked ? 'opacity-60 grayscale' : ''} />}
+        {node.rewardPetCode && (
+          <div className="absolute -left-12 top-1 rounded-2xl bg-white/90 p-0.5 shadow-md">
+            <Pet code={node.rewardPetCode} size={44} locked={!cleared} />
+          </div>
+        )}
+      </div>
+      <div className={`mt-1 rounded-full px-3 py-1 text-label-sm font-extrabold shadow ${locked ? 'bg-surface-container text-outline' : 'bg-error text-white'}`}>
+        Ải trùm {cleared && <Stars value={node.stars} size={12} className="ml-1 inline-flex" />}
+      </div>
+      <div className="mt-1 max-w-[180px] text-center text-[11px] font-bold leading-tight text-on-surface-variant">
+        {cleared ? `Đã nhận ${node.rewardPetName}` : `Rương báu: ${node.rewardPetName || 'thú hiếm'} + ${node.rewardCoins} xu`}
+      </div>
+    </button>
   )
 }
 
-function Stat({ label, value, highlight }) {
+function StatPill({ icon, value, label }) {
   return (
-    <div className="flex flex-col rounded-xl bg-surface-container-low p-space-md">
+    <div className="flex min-w-[74px] flex-col items-center rounded-2xl bg-surface-container-low px-space-sm py-space-xs">
+      <div className="flex items-center gap-1 text-headline-sm font-extrabold text-on-surface">{icon}{value}</div>
       <span className="text-label-sm text-on-surface-variant">{label}</span>
-      <span className={`text-headline-lg font-extrabold ${highlight ? 'text-primary' : 'text-on-surface'}`}>{value}</span>
     </div>
+  )
+}
+
+function ToolLink({ to, icon, title, desc }) {
+  return (
+    <Link to={to} className="flex items-center gap-space-sm rounded-2xl bg-surface-container-lowest p-space-md shadow-sm transition-colors hover:bg-surface-container-low">
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-fixed text-primary">
+        <Icon name={icon} className="text-[22px]" />
+      </span>
+      <div className="min-w-0">
+        <div className="text-label-lg text-on-surface">{title}</div>
+        <div className="truncate text-body-sm text-on-surface-variant">{desc}</div>
+      </div>
+    </Link>
   )
 }

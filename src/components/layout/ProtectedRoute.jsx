@@ -15,5 +15,9 @@ export default function ProtectedRoute({ roles }) {
   if (roles && !roles.includes(user.role)) {
     return <Navigate to={user.role === 'STUDENT' ? '/' : '/lecturer'} replace />
   }
+  // Học sinh mới đăng ký: đi qua màn chào mừng 3 bước trước (chọn lớp, mục tiêu, thú đồng hành)
+  if (user.role === 'STUDENT' && user.onboarded === false && location.pathname !== '/welcome') {
+    return <Navigate to="/welcome" replace />
+  }
   return <Outlet />
 }

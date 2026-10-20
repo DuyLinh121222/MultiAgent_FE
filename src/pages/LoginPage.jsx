@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import Icon from '../components/common/Icon'
 import Logo from '../components/common/Logo'
 import ErrorBox from '../components/common/ErrorBox'
@@ -26,7 +26,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const [mode, setMode] = useState('login')
-  const [form, setForm] = useState({ fullName: '', email: '', password: '', gradeLevel: 7 })
+  const [form, setForm] = useState({ fullName: '', email: '', password: '', gradeLevel: 9 })
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -144,26 +144,9 @@ export default function LoginPage() {
               </div>
 
               {isRegister && (
-                <div className="mb-6">
-                  <label className="mb-2.5 block text-label-sm font-extrabold uppercase tracking-wider text-on-surface-variant">Chọn khối lớp của bạn:</label>
-                  <div className="grid grid-cols-4 gap-2.5">
-                    {[6, 7, 8, 9].map((g) => (
-                      <button
-                        key={g}
-                        type="button"
-                        onClick={() => setForm((f) => ({ ...f, gradeLevel: g }))}
-                        className={`flex flex-col items-center justify-center rounded-2xl px-1 py-2.5 transition-all ${
-                          Number(form.gradeLevel) === g
-                            ? 'bg-primary text-on-primary shadow-md shadow-primary/30'
-                            : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
-                        }`}
-                      >
-                        <span className="text-headline-sm font-black">{g}</span>
-                        <span className="text-label-sm font-bold">Lớp {g}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <p className="mb-4 rounded-2xl bg-primary-fixed/40 px-4 py-3 text-body-sm text-on-primary-fixed">
+                  Chỉ cần 3 thông tin. Chọn lớp và bạn đồng hành ở bước sau nhé!
+                </p>
               )}
 
               <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
@@ -213,10 +196,11 @@ export default function LoginPage() {
                 <div className="flex flex-col">
                   <span className="text-label-md font-black text-on-secondary-fixed">Chưa có tài khoản? Nhận ngay 7 ngày học thử miễn phí 0đ</span>
                   <span className="text-body-sm text-on-surface-variant">Sau đó chỉ 99.000đ/tháng để học tiếp cùng 3 bạn AI.</span>
+                  <Link to="/plans" className="mt-1 text-label-md font-bold text-primary hover:underline">Xem bảng giá cho phụ huynh, trung tâm và trường học →</Link>
                 </div>
               </div>
               <div className="rounded-2xl bg-surface-container-low p-3 text-body-sm text-on-surface-variant">
-                <span className="font-bold text-on-surface">Tài khoản demo</span> (mật khẩu <code>123456</code>): hocsinh@mael.vn • giangvien@mael.vn
+                <span className="font-bold text-on-surface">Tài khoản demo</span> (mật khẩu <code>123456</code>): lop9@mael.vn • hocsinh@mael.vn • giangvien@mael.vn
               </div>
             </div>
           </div>
