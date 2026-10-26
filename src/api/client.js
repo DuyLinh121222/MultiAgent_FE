@@ -26,6 +26,10 @@ client.interceptors.response.use(
       localStorage.removeItem(TOKEN_KEY)
       if (window.location.pathname !== '/login') window.location.href = '/login'
     }
+    // Hết thể lực: báo cho EnergyModal hiện màn nghỉ ngơi
+    if (status === 429 && /thể lực/i.test(error.response?.data?.message || '')) {
+      window.dispatchEvent(new CustomEvent('mael:no-energy', { detail: error.response.data.message }))
+    }
     return Promise.reject(error)
   },
 )

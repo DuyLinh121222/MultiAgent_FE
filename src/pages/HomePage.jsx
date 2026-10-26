@@ -5,7 +5,8 @@ import Loading from '../components/common/Loading'
 import ErrorBox from '../components/common/ErrorBox'
 import Pet from '../components/game/Pet'
 import { Castle, Chest, Coin, Decor, Star, Stars, chapterTheme } from '../components/game/GameArt'
-import { gameApi } from '../api/services'
+import { gameApi, insightApi } from '../api/services'
+import { EnergyBar, formatCountdown } from '../components/game/EnergyModal'
 import { getErrorMessage } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
@@ -33,7 +34,7 @@ export default function HomePage() {
     try {
       const m = await gameApi.map()
       setMap(m)
-      patchUser({ coins: m.profile.coins, xp: m.profile.xp, activePetCode: m.profile.activePetCode })
+      patchUser({ coins: m.profile.coins, xp: m.profile.xp, activePetCode: m.profile.activePetCode, energy: m.profile.energy, streakDays: m.profile.streakDays })
     } catch (e) {
       setError(getErrorMessage(e))
     }
@@ -84,10 +85,26 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-space-sm">
+        <div className="grid grid-cols-4 gap-space-sm">
+          <StatPill icon={<Icon name="local_fire_department" filled className={`text-[22px] ${p.streakDays ? 'text-[#ea580c]' : 'text-outline'}`} />} value={p.streakDays} label="ngày" />
           <StatPill icon={<Coin size={22} />} value={p.coins} label="xu" />
           <StatPill icon={<Star size={22} />} value={p.totalStars} label="sao" />
           <StatPill icon={<Icon name="flag" filled className="text-[22px] text-tertiary" />} value={`${progress}%`} label="bản đồ" />
+        </div>
+      </section>
+
+      {/* Thể lực + chuỗi ngày */}
+      <section className="flex flex-wrap items-center gap-space-md rounded-[24px] bg-surface-container-lowest px-space-lg py-space-sm shadow-sm">
+        <div className="flex items-center gap-2">
+          <EnergyBar energy={p.energy} max={p.maxEnergy} size={24} />
+          <span className="text-label-md text-on-surface-variant">
+            {p.energy >= p.maxEnergy ? 'Thể lực đầy' : `+1 sau ${formatCountdown(p.nextEnergyInSeconds)}`}
+          </span>
+        </div>
+        <div className="ml-auto flex items-center gap-2 text-label-md">
+          {p.streakAtRisk && <span className="chip energy-pulse bg-[#ffe3cc] text-[#c2410c]"><Icon name="local_fire_department" filled className="text-[16px]" /> Học hôm nay để giữ chuỗi!</span>}
+          {p.playedToday && <span className="chip bg-tertiary-fixed text-on-tertiary-fixed"><Icon name="check_circle" filled className="text-[16px]" /> Hôm nay đã học</span>}
+          <span className="chip bg-primary-fixed text-on-primary-fixed" title="Khiên giữ chuỗi"><Icon name="shield" filled className="text-[16px]" /> {p.streakShields}</span>
         </div>
       </section>
 
@@ -116,6 +133,12 @@ export default function HomePage() {
         </section>
       ) : null}
 
+      <InsightCard petCode={p.activePetCode} onOpen={(f) => {
+        if (f.targetType === 'ARENA') navigate(`/arena/${f.targetId}`)
+        else if (f.targetType === 'BOSS') navigate(`/boss/${f.targetId}`)
+        else navigate(`/stage/${f.targetId}`)
+      }} />
+
       {map.chapters.length === 0 || map.totalStages === 0 ? (
         <div className="card text-center">
           <Pet code={p.activePetCode} size={110} className="mx-auto" />
@@ -132,7 +155,8 @@ export default function HomePage() {
       )}
 
       {/* Công cụ phụ, để nhỏ phía dưới cho đỡ rối */}
-      <section className="grid grid-cols-1 gap-space-sm sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-space-sm sm:grid-cols-2 lg:grid-cols-4">
+        <ToolLink to="/arena" icon="sports_esports" title="Đấu trường" desc="Giải siêu tốc, combo" />
         <ToolLink to="/study-room" icon="forum" title="Phòng học 3 AI" desc="Hỏi bài, bắt lỗi bạn AI" />
         <ToolLink to="/photo-solver" icon="photo_camera" title="Giải bằng ảnh" desc="Chụp đề trong vở" />
         <ToolLink to="/quizzes" icon="insights" title="Ôn điểm yếu" desc="Quiz theo phần còn yếu" />
@@ -273,9 +297,78 @@ function BossNode({ node, onOpen }) {
   )
 }
 
+/** Thầy Trí nhận xét: phân tích cá nhân hoá (AI hoặc theo luật), ít chữ, bấm thẳng tới ải nên chơi */
+function InsightCard({ petCode, onOpen }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const load = (refresh) => {
+    setLoading(true)
+    insightApi.me(refresh).then(setData).catch(() => {}).finally(() => setLoading(false))
+  }
+  useEffect(() => { load(false) }, [])
+  if (!data && loading) return <div className="h-28 animate-pulse rounded-[28px] bg-surface-container-low" />
+  if (!data) return null
+  return (
+    <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#f0ecff] to-surface-container-lowest p-space-lg shadow-sm">
+      <div className="flex flex-col gap-space-md md:flex-row md:items-start">
+        <div className="flex items-center gap-space-sm md:w-64 md:flex-col md:items-start">
+          <div className="relative">
+            <Pet code={petCode} size={64} bounce={data.mood === 'HAPPY'} />
+            <span className="absolute -bottom-1 -right-1 rounded-full bg-[#5b3fd0] px-1.5 text-[10px] font-bold text-white">{data.generatedBy === 'AI' ? 'AI' : 'Thầy'}</span>
+          </div>
+          <div>
+            <div className="text-label-sm uppercase tracking-wider text-[#5b3fd0]">Thầy Trí nhận xét</div>
+            <div className="text-headline-sm leading-snug text-on-surface">{data.headline}</div>
+          </div>
+        </div>
+        <div className="flex flex-1 flex-col gap-space-sm">
+          {/* Mức thành thạo từng chương */}
+          <div className="grid grid-cols-5 gap-1.5">
+            {data.chapters.map((c, i) => (
+              <div key={c.topicId} title={`${c.name}: ${c.percent}%`} className="flex flex-col items-center gap-1">
+                <div className="relative h-14 w-full overflow-hidden rounded-xl bg-white">
+                  <div className="absolute inset-x-0 bottom-0 rounded-xl bg-gradient-to-t from-[#8b6cf6] to-[#c4b5fd] transition-all" style={{ height: `${Math.max(c.percent, 4)}%` }} />
+                  <span className="absolute inset-x-0 top-1 text-center text-label-sm font-black text-on-surface">{c.percent}%</span>
+                </div>
+                <span className="text-[10px] font-bold text-on-surface-variant">C{i + 1}</span>
+              </div>
+            ))}
+          </div>
+          {data.strengths.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {data.strengths.map((s) => (
+                <span key={s} className="chip bg-tertiary-fixed/70 py-0.5 text-on-tertiary-fixed"><Icon name="thumb_up" filled className="text-[14px]" /> {s}</span>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            {data.focus.map((f) => (
+              <button key={f.title + f.targetId} type="button" onClick={() => onOpen(f)}
+                className="flex items-center gap-space-sm rounded-2xl bg-white px-space-md py-space-sm text-left shadow-sm transition-colors hover:bg-primary-fixed/40">
+                <Icon name={f.targetType === 'ARENA' ? 'sports_esports' : 'flag'} filled className="text-[22px] text-primary" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-label-lg text-on-surface">{f.title}</span>
+                  <span className="block truncate text-body-sm text-on-surface-variant">{f.reason}</span>
+                </span>
+                <Icon name="play_circle" filled className="text-[26px] text-secondary-container" />
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-space-sm flex items-center justify-between gap-space-sm">
+        <span className="text-body-sm text-on-surface-variant"><Icon name="tips_and_updates" filled className="align-middle text-[18px] text-secondary" /> {data.tip}</span>
+        <button type="button" onClick={() => load(true)} disabled={loading} title="Phân tích lại" className="btn-ghost px-2 py-1">
+          <Icon name="refresh" className={`text-[20px] ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+    </section>
+  )
+}
+
 function StatPill({ icon, value, label }) {
   return (
-    <div className="flex min-w-[74px] flex-col items-center rounded-2xl bg-surface-container-low px-space-sm py-space-xs">
+    <div className="flex min-w-[64px] flex-col items-center rounded-2xl bg-surface-container-low px-space-sm py-space-xs">
       <div className="flex items-center gap-1 text-headline-sm font-extrabold text-on-surface">{icon}{value}</div>
       <span className="text-label-sm text-on-surface-variant">{label}</span>
     </div>

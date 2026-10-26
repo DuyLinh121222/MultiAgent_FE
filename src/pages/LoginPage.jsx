@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import Captcha from '../components/common/Captcha'
 import Icon from '../components/common/Icon'
 import Logo from '../components/common/Logo'
 import ErrorBox from '../components/common/ErrorBox'
@@ -25,7 +26,10 @@ export default function LoginPage() {
   const { user, login, register } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [mode, setMode] = useState('login')
+  const [params] = useSearchParams()
+  const [mode, setMode] = useState(params.get('mode') === 'register' ? 'register' : 'login')
+  const [captcha, setCaptcha] = useState({ token: '', answer: '' })
+  const [captchaKey, setCaptchaKey] = useState(0)
   const [form, setForm] = useState({ fullName: '', email: '', password: '', gradeLevel: 9 })
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -42,12 +46,14 @@ export default function LoginPage() {
     setSubmitting(true)
     try {
       const u = isRegister
-        ? await register({ ...form, email: form.email.trim(), gradeLevel: Number(form.gradeLevel) })
+        ? await register({ ...form, email: form.email.trim(), gradeLevel: Number(form.gradeLevel),
+          captchaToken: captcha.token, captchaAnswer: captcha.answer })
         : await login(form.email.trim(), form.password)
       const from = location.state?.from?.pathname
       navigate(u.role === 'STUDENT' ? from || '/' : '/lecturer', { replace: true })
     } catch (err) {
       setError(getErrorMessage(err))
+      if (isRegister) setCaptchaKey((k) => k + 1)
     } finally {
       setSubmitting(false)
     }
@@ -57,7 +63,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#edf3ff]">
       <header className="bg-surface-container-lowest/95 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
         <div className="flex h-20 items-center justify-between px-margin-mobile md:px-margin">
-          <Logo to="/login" />
+          <Logo to="/" />
           <span className="chip hidden bg-secondary-fixed text-on-secondary-fixed sm:inline-flex">🎁 Tặng 7 ngày học thử 0đ</span>
         </div>
       </header>
@@ -176,6 +182,8 @@ export default function LoginPage() {
                     </button>
                   </div>
                 </Field>
+
+                {isRegister && <Captcha value={captcha} onChange={setCaptcha} reloadKey={captchaKey} />}
 
                 <ErrorBox message={error} />
 

@@ -80,6 +80,51 @@ export const gameApi = {
   buyPet: (code) => post(`/api/game/pets/${code}/buy`),
   setActivePet: (code) => put(`/api/game/pets/${code}/active`),
   onboarding: (payload) => post('/api/game/onboarding', payload),
+  buyShield: () => post('/api/game/streak/shield'),
+  arenas: () => get('/api/game/arenas'),
+  startArena: (topicId) => post(`/api/game/arenas/${topicId}/start`),
+  answerArena: (runId, questionId, answer) => post(`/api/game/arena-runs/${runId}/answer`, { questionId, answer }),
+  finishArena: (runId, timeLeft) => post(`/api/game/arena-runs/${runId}/finish`, { timeLeft }),
+}
+
+export const insightApi = {
+  me: (refresh = false) => get('/api/insights/me', { params: { refresh } }),
+}
+
+export const profileApi = {
+  get: () => get('/api/me/profile'),
+  update: (payload) => put('/api/me/profile', payload),
+  changePassword: (currentPassword, newPassword) => put('/api/me/password', { currentPassword, newPassword }),
+}
+
+export const publicApi = {
+  captcha: () => get('/api/captcha'),
+  site: () => get('/api/public/site'),
+  blog: () => get('/api/blog'),
+  post: (id) => get(`/api/blog/${id}`),
+}
+
+export const blogAdminApi = {
+  list: () => get('/api/manage/blog'),
+  create: (payload) => post('/api/manage/blog', payload),
+  update: (id, payload) => put(`/api/manage/blog/${id}`, payload),
+  remove: (id) => client.delete(`/api/manage/blog/${id}`),
+}
+
+export const documentApi = {
+  topics: () => get('/api/lecturer/topics'),
+  list: () => get('/api/lecturer/documents'),
+  get: (id) => get(`/api/lecturer/documents/${id}`),
+  upload: (file, { topicId, lessonId, title }) => {
+    const form = new FormData()
+    form.append('file', file)
+    if (topicId) form.append('topicId', topicId)
+    if (lessonId) form.append('lessonId', lessonId)
+    if (title) form.append('title', title)
+    return post('/api/lecturer/documents', form, { timeout: 120000 })
+  },
+  reprocess: (id) => post(`/api/lecturer/documents/${id}/reprocess`),
+  approveAll: (id) => post(`/api/lecturer/documents/${id}/approve-all`),
 }
 
 export const leadApi = {

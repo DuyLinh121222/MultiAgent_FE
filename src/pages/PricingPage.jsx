@@ -9,6 +9,8 @@ import { leadApi, paymentApi, planApi } from '../api/services'
 import { getErrorMessage } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { formatDate, formatVND } from '../utils/format'
+import Captcha from '../components/common/Captcha'
+import { CONTACT } from '../constants/site'
 
 const TABS = [
   { key: 'STUDENT', label: 'Học sinh & Phụ huynh', icon: 'family_restroom' },
@@ -47,7 +49,9 @@ export default function PricingPage() {
   const [error, setError] = useState('')
   const [buying, setBuying] = useState('')
   const [openFaq, setOpenFaq] = useState(0)
-  const tab = TABS.some((t) => t.key === params.get('for')) ? params.get('for') : 'STUDENT'
+  const isStudent = user?.role === 'STUDENT'
+  // Học sinh đã đăng nhập chỉ xem gói dành cho học sinh
+  const tab = !isStudent && TABS.some((t) => t.key === params.get('for')) ? params.get('for') : 'STUDENT'
 
   useEffect(() => {
     planApi.plans().then(setPlans).catch((e) => setError(getErrorMessage(e)))
@@ -91,7 +95,9 @@ export default function PricingPage() {
             Chọn gói phù hợp để <span className="text-primary underline decoration-secondary-container decoration-4 underline-offset-8">đi ải Toán</span> cùng 3 AI
           </h1>
           <p className="max-w-2xl text-body-lg text-on-surface-variant">
-            Bản đồ ải bám SGK, Thầy AI giảng từng bước, bạn AI phản biện để học sinh tự bắt lỗi. Dùng cho từng em, cả trung tâm hoặc cả trường.
+            {isStudent
+              ? 'Bản đồ ải bám SGK, Thầy AI giảng từng bước, bạn AI phản biện để em tự bắt lỗi.'
+              : 'Bản đồ ải bám SGK, Thầy AI giảng từng bước, bạn AI phản biện để học sinh tự bắt lỗi. Dùng cho từng em, cả trung tâm hoặc cả trường.'}
           </p>
           {user?.role === 'STUDENT' && tab === 'STUDENT' && (
             <span className="chip bg-surface-container-lowest text-on-surface shadow-sm">
@@ -102,8 +108,8 @@ export default function PricingPage() {
             </span>
           )}
 
-          {/* Chọn nhóm khách hàng */}
-          <div className="mt-space-sm grid w-full max-w-2xl grid-cols-3 rounded-2xl bg-surface-container p-1.5">
+          {/* Chọn nhóm khách hàng (khách chưa đăng nhập) */}
+          {!isStudent && <div className="mt-space-sm grid w-full max-w-2xl grid-cols-3 rounded-2xl bg-surface-container p-1.5">
             {TABS.map((t) => (
               <button key={t.key} type="button" onClick={() => setTab(t.key)}
                 className={`flex flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2.5 text-label-md font-extrabold transition-all sm:flex-row sm:gap-2 sm:text-label-lg ${
@@ -112,7 +118,7 @@ export default function PricingPage() {
                 <Icon name={t.icon} className="text-[20px]" /> {t.label}
               </button>
             ))}
-          </div>
+          </div>}
         </div>
       </div>
 
@@ -120,7 +126,7 @@ export default function PricingPage() {
         <ErrorBox message={error} />
 
         {tab === 'STUDENT' ? (
-          <div className="grid grid-cols-1 items-stretch gap-space-md md:grid-cols-3">
+          <div className={`grid grid-cols-1 items-stretch gap-space-md ${list.length === 2 ? 'mx-auto w-full max-w-3xl md:grid-cols-2' : 'md:grid-cols-3'}`}>
             {list.map((p) => (
               <StudentPlanCard key={p.id} plan={p} onBuy={() => buy(p.id)} buying={buying === p.id} current={sub?.planId === p.id} />
             ))}
@@ -198,7 +204,9 @@ function StudentPlanCard({ plan, onBuy, buying, current }) {
 function OrgSection({ plans, orgType }) {
   const plan = plans[0]
   const [seats, setSeats] = useState(plan?.minSeats || 30)
-  const [form, setForm] = useState({ orgName: '', contactName: '', phone: '', email: '', note: '' })
+  const [form, setForm] = useState({ orgName: '', contactName: '', phone: '', email: '', note: '', website: '' })
+  const [captcha, setCaptcha] = useState({ token: '', answer: '' })
+  const [captchaKey, setCaptchaKey] = useState(0)
   const [sending, setSending] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
@@ -215,10 +223,12 @@ function OrgSection({ plans, orgType }) {
     setSending(true)
     setError('')
     try {
-      await leadApi.create({ ...form, orgType, studentCount: Number(seats) || null, planId: plan.id, email: form.email || null })
+      await leadApi.create({ ...form, orgType, studentCount: Number(seats) || null, planId: plan.id, email: form.email || null,
+        captchaToken: captcha.token, captchaAnswer: captcha.answer })
       setDone(true)
     } catch (err) {
       setError(getErrorMessage(err))
+      setCaptchaKey((k) => k + 1)
     } finally {
       setSending(false)
     }
@@ -282,14 +292,20 @@ function OrgSection({ plans, orgType }) {
             <p className="text-body-md text-on-surface-variant">MAEL sẽ gọi lại trong 1 ngày làm việc để hẹn buổi demo cho {form.orgName}.</p>
           </div>
         ) : (
-          <form className="flex flex-col gap-space-sm" onSubmit={submit}>
+          <form className="relative flex flex-col gap-space-sm" onSubmit={submit}>
             <h3 className="text-headline-sm text-on-surface">Nhận báo giá & demo miễn phí</h3>
-            <p className="text-body-sm text-on-surface-variant">Để lại thông tin, chuyên viên MAEL sẽ liên hệ.</p>
+            <p className="text-body-sm text-on-surface-variant">
+              Để lại thông tin, chuyên viên MAEL sẽ liên hệ. Hoặc gọi ngay <a className="font-bold text-primary" href={`tel:${CONTACT.phone}`}>{CONTACT.phoneDisplay}</a>
+            </p>
             <input className="input h-12" placeholder={isSchool ? 'Tên trường *' : 'Tên trung tâm *'} value={form.orgName} onChange={set('orgName')} required />
             <input className="input h-12" placeholder="Người liên hệ *" value={form.contactName} onChange={set('contactName')} required />
             <input className="input h-12" placeholder="Số điện thoại *" value={form.phone} onChange={set('phone')} required inputMode="tel" />
             <input className="input h-12" placeholder="Email" type="email" value={form.email} onChange={set('email')} />
-            <textarea className="input h-24 py-3" placeholder="Ghi chú (khối lớp, thời gian muốn triển khai...)" value={form.note} onChange={set('note')} />
+            <textarea className="input h-24 py-3" placeholder="Ghi chú (khối lớp, thời gian muốn triển khai...)" value={form.note} onChange={set('note')} maxLength={1000} />
+            {/* Ô bẫy bot: người dùng thật không nhìn thấy */}
+            <input type="text" name="website" tabIndex={-1} autoComplete="off" value={form.website} onChange={set('website')}
+              className="absolute -left-[9999px] h-0 w-0 opacity-0" aria-hidden="true" />
+            <Captcha value={captcha} onChange={setCaptcha} reloadKey={captchaKey} />
             <ErrorBox message={error} />
             <button type="submit" disabled={sending} className="btn-primary py-space-md text-label-lg">
               <Icon name="send" className="text-[20px]" /> {sending ? 'Đang gửi...' : 'Gửi yêu cầu tư vấn'}

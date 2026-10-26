@@ -11,7 +11,7 @@ import { AGENTS_INTRO, agentUi } from '../constants/agents'
 import { useAuth } from '../context/AuthContext'
 import { formatTime } from '../utils/format'
 import Pet from '../components/game/Pet'
-import { speak, stopSpeaking, warmUpVoices } from '../utils/speech'
+import { currentGeneration, getVolume, setVolume, speak, stopSpeaking, warmUpVoices } from '../utils/speech'
 
 // Dự phòng khi tin nhắn AI cuối cùng không kèm lựa chọn
 const FALLBACK_REPLIES = [
@@ -43,52 +43,75 @@ export default function DiscussionPage() {
   const [showLesson, setShowLesson] = useState(true)
   const [voiceOn, setVoiceOn] = useState(readVoicePref)
   const [speakingId, setSpeakingId] = useState(null)
+  const [volume, setVolumeState] = useState(() => Math.round(getVolume() * 100))
   const bottomRef = useRef(null)
   const queueRef = useRef(Promise.resolve())
   const voiceRef = useRef(voiceOn)
+  // Tin nhắn đã đọc rồi thì không đọc lại (tránh lặp khi trang render 2 lần hoặc tải lại dữ liệu)
+  const spokenRef = useRef(new Set())
 
-  // Đọc lần lượt các tin nhắn của AI, mỗi AI một giọng
+  // Đọc lần lượt các tin nhắn MỚI của AI, mỗi AI một giọng
   const readAloud = useCallback((list) => {
-    list.filter((m) => m.senderType === 'AGENT').forEach((m) => {
+    const gen = currentGeneration()
+    list.filter((m) => m.senderType === 'AGENT' && !spokenRef.current.has(m.id)).forEach((m) => {
+      spokenRef.current.add(m.id)
       queueRef.current = queueRef.current.then(async () => {
-        if (!voiceRef.current) return
+        if (!voiceRef.current || gen !== currentGeneration()) return
         setSpeakingId(m.id)
-        await speak(m.agentId, m.content)
-        setSpeakingId(null)
+        await speak(m.agentId, m.content, gen)
+        setSpeakingId((id) => (id === m.id ? null : id))
       })
     })
   }, [])
 
   useEffect(() => {
+    let alive = true
     warmUpVoices()
     discussionApi.get(sessionId)
       .then((s) => {
+        if (!alive) return
         setSession(s)
         setMessages(s.messages)
-        // Vừa mở phòng (chưa có tin nhắn học sinh) thì đọc lời chào
+        // Vừa mở phòng (chưa có tin nhắn học sinh) thì đọc lời chào, các lần sau chỉ đọc tin mới
         if (s.status === 'ACTIVE' && !s.messages.some((m) => m.senderType === 'STUDENT')) readAloud(s.messages)
+        else s.messages.forEach((m) => spokenRef.current.add(m.id))
       })
-      .catch((e) => setError(getErrorMessage(e)))
-    return () => stopSpeaking()
+      .catch((e) => alive && setError(getErrorMessage(e)))
+    return () => {
+      alive = false
+      stopSpeaking()
+      queueRef.current = Promise.resolve()
+    }
   }, [sessionId, readAloud])
+
+  const stopAll = () => {
+    stopSpeaking()
+    queueRef.current = Promise.resolve()
+    setSpeakingId(null)
+  }
 
   const toggleVoice = () => {
     const next = !voiceOn
     setVoiceOn(next)
     voiceRef.current = next
     try { localStorage.setItem(VOICE_KEY, next ? 'on' : 'off') } catch { /* bỏ qua */ }
-    if (!next) {
-      stopSpeaking()
-      queueRef.current = Promise.resolve()
-      setSpeakingId(null)
-    }
+    if (!next) stopAll()
+  }
+
+  const changeVolume = (e) => {
+    const v = Number(e.target.value)
+    setVolumeState(v)
+    setVolume(v / 100)
+    if (v === 0 && voiceOn) toggleVoice()
+    if (v > 0 && !voiceOn) toggleVoice()
   }
 
   const speakOne = (m) => {
-    stopSpeaking()
-    queueRef.current = Promise.resolve()
+    if (speakingId === m.id) return stopAll()
+    stopAll()
+    const gen = currentGeneration()
     setSpeakingId(m.id)
-    speak(m.agentId, m.content).finally(() => setSpeakingId(null))
+    speak(m.agentId, m.content, gen).finally(() => setSpeakingId((id) => (id === m.id ? null : id)))
   }
 
   useEffect(() => {
@@ -98,8 +121,7 @@ export default function DiscussionPage() {
   const send = async (text) => {
     const content = (text ?? input).trim()
     if (!content || sending) return
-    stopSpeaking()
-    queueRef.current = Promise.resolve()
+    stopAll()
     setInput('')
     setSending(true)
     setError('')
@@ -169,10 +191,21 @@ export default function DiscussionPage() {
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-space-sm">
-          <button type="button" onClick={toggleVoice} title="Bật / tắt giọng đọc của 3 AI"
-            className={`flex items-center gap-1 rounded-xl px-space-md py-1.5 text-label-md ${voiceOn ? 'bg-tertiary-fixed text-on-tertiary-fixed' : 'bg-surface-container text-on-surface-variant'}`}>
-            <Icon name={voiceOn ? 'volume_up' : 'volume_off'} className="text-[18px]" /> {voiceOn ? 'Đang đọc to' : 'Tắt tiếng'}
-          </button>
+          <div className={`flex items-center gap-2 rounded-xl px-space-sm py-1 ${voiceOn ? 'bg-tertiary-fixed text-on-tertiary-fixed' : 'bg-surface-container text-on-surface-variant'}`}>
+            <button type="button" onClick={toggleVoice} title={voiceOn ? 'Tắt giọng đọc' : 'Bật giọng đọc'}
+              className="flex items-center gap-1 rounded-lg px-1 py-0.5 text-label-md hover:bg-white/50">
+              <Icon name={!voiceOn || volume === 0 ? 'volume_off' : volume < 50 ? 'volume_down' : 'volume_up'} className="text-[20px]" />
+              <span className="hidden sm:inline">{voiceOn ? 'Giọng đọc' : 'Tắt tiếng'}</span>
+            </button>
+            <input type="range" min="0" max="100" step="5" value={voiceOn ? volume : 0} onChange={changeVolume}
+              aria-label="Âm lượng giọng đọc" className="h-1.5 w-20 cursor-pointer accent-tertiary sm:w-28" />
+            <span className="w-8 text-right text-label-sm tabular-nums">{voiceOn ? volume : 0}%</span>
+            {speakingId && (
+              <button type="button" onClick={stopAll} title="Dừng đọc" className="rounded-lg p-0.5 hover:bg-white/50">
+                <Icon name="stop_circle" filled className="text-[20px]" />
+              </button>
+            )}
+          </div>
           <Link to={`/stage/${session.lessonId}`} className="btn-primary py-1.5 text-label-md">
             <Icon name="bolt" filled className="text-[18px]" /> Vào thử thách ải
           </Link>
@@ -211,7 +244,7 @@ export default function DiscussionPage() {
                   <span className="text-label-md font-bold text-on-primary-fixed">Mẹo thảo luận</span>
                 </div>
                 <p className="text-body-sm leading-relaxed text-on-primary-fixed-variant">
-                  Đọc kỹ từng câu của các bạn AI. Khi thấy lập luận sai, bấm “Bạn ấy nói sai!” rồi giải thích vì sao sai nhé.
+                  Kiệt và An có lúc nói đúng, có lúc cố ý nói sai. Đọc kỹ rồi bấm chọn ai đúng ai sai nhé!
                 </p>
               </div>
               <Link to={`/lessons/${session.lessonId}`} className="btn-secondary mt-space-md w-full text-primary">
@@ -364,7 +397,7 @@ function AgentMessage({ m, flagged, onFlag, disabled, speaking, onSpeak }) {
           <span className={`text-label-md font-bold ${ui.text}`}>{m.agentName}</span>
           <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${ui.chip}`}>{ui.role}</span>
           <span className="text-label-sm text-on-surface-variant">{formatTime(m.createdAt)}</span>
-          <button type="button" onClick={onSpeak} title="Nghe lại"
+          <button type="button" onClick={onSpeak} title={speaking ? 'Dừng đọc' : 'Nghe lại'}
             className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${speaking ? 'bg-tertiary-container text-white' : 'text-on-surface-variant hover:bg-surface-container'}`}>
             <Icon name={speaking ? 'graphic_eq' : 'volume_up'} className="text-[16px]" />
           </button>

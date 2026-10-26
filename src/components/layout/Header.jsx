@@ -6,16 +6,21 @@ import { useAuth } from '../../context/AuthContext'
 import studentAvatar from '../../assets/avatar-kiet.jpg'
 import Pet from '../game/Pet'
 import { Coin } from '../game/GameArt'
+import { gameApi } from '../../api/services'
 
 const STUDENT_NAV = [
   { to: '/', label: 'Bản đồ ải', icon: 'map', end: true },
+  { to: '/arena', label: 'Đấu trường', icon: 'sports_esports' },
   { to: '/study-room', label: 'Phòng học AI', icon: 'forum' },
   { to: '/quizzes', label: 'Ôn điểm yếu', icon: 'insights' },
-  { to: '/photo-solver', label: 'Giải bằng ảnh', icon: 'photo_camera' },
+  { to: '/photo-solver', label: 'Giải ảnh', icon: 'photo_camera' },
   { to: '/pets', label: 'Thú cưng', icon: 'pets' },
-  { to: '/pricing', label: 'Gói học', icon: 'workspace_premium' },
 ]
-const LECTURER_NAV = [{ to: '/lecturer', label: 'Duyệt nội dung', icon: 'fact_check', end: true }]
+const LECTURER_NAV = [
+  { to: '/lecturer', label: 'Duyệt nội dung', icon: 'fact_check', end: true },
+  { to: '/lecturer/documents', label: 'Tài liệu PDF', icon: 'picture_as_pdf' },
+  { to: '/lecturer/blog', label: 'Bài viết', icon: 'campaign' },
+]
 
 const navClass = ({ isActive }) =>
   `flex items-center gap-space-xs rounded-xl px-space-md py-space-sm text-label-lg transition-colors ${
@@ -23,7 +28,7 @@ const navClass = ({ isActive }) =>
   }`
 
 export default function Header() {
-  const { user, logout } = useAuth()
+  const { user, logout, patchUser } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -36,12 +41,22 @@ export default function Header() {
   }, [])
 
   const isStudent = user?.role === 'STUDENT'
+
+  // Thể lực tự hồi theo thời gian: cập nhật lại mỗi phút khi chưa đầy
+  useEffect(() => {
+    if (!isStudent) return undefined
+    const t = setInterval(() => {
+      if ((user?.energy ?? 5) >= 5) return
+      gameApi.profile().then((p) => patchUser({ energy: p.energy, streakDays: p.streakDays, coins: p.coins })).catch(() => {})
+    }, 60000)
+    return () => clearInterval(t)
+  }, [isStudent, user?.energy, patchUser])
   const nav = isStudent ? STUDENT_NAV : LECTURER_NAV
   const sub = user?.subscription
 
   const handleLogout = () => {
     logout()
-    navigate('/login')
+    navigate('/')
   }
 
   return (
@@ -52,10 +67,11 @@ export default function Header() {
             <Icon name={mobileOpen ? 'close' : 'menu'} />
           </button>
           <Logo to={isStudent ? '/' : '/lecturer'} />
-          <nav className="hidden items-center gap-space-xs xl:flex">
+          <nav className="hidden items-center gap-0.5 xl:flex">
             {nav.map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.end} className={navClass}>
-                <Icon name={n.icon} className="text-[20px]" /> {n.label}
+              <NavLink key={n.to} to={n.to} end={n.end} className={navClass} title={n.label}>
+                <Icon name={n.icon} className="text-[20px]" />
+                <span className={isStudent ? 'hidden 2xl:inline' : ''}>{n.label}</span>
               </NavLink>
             ))}
           </nav>
@@ -63,21 +79,31 @@ export default function Header() {
 
         <div className="flex flex-shrink-0 items-center gap-space-md">
           {isStudent && sub?.trial && (
-            <div className="hidden items-center gap-space-xs rounded-full bg-secondary-fixed px-space-md py-space-xs text-on-secondary-fixed 2xl:flex">
+            <Link to="/profile" className="hidden items-center gap-space-xs rounded-full bg-secondary-fixed px-space-md py-space-xs text-on-secondary-fixed 2xl:flex" title="Xem ngày hết hạn">
               <Icon name="schedule" className="text-[18px]" />
-              <span className="text-label-md">Dùng thử miễn phí: Còn {sub.daysLeft} ngày</span>
-            </div>
+              <span className="text-label-md">Dùng thử: còn {sub.daysLeft} ngày</span>
+            </Link>
           )}
           {isStudent && !sub && (
-            <div className="hidden items-center gap-space-xs rounded-full bg-error-container px-space-md py-space-xs text-on-error-container 2xl:flex">
+            <Link to="/pricing" className="hidden items-center gap-space-xs rounded-full bg-error-container px-space-md py-space-xs text-on-error-container 2xl:flex">
               <Icon name="error" className="text-[18px]" />
               <span className="text-label-md">Gói học đã hết hạn</span>
-            </div>
+            </Link>
           )}
           {isStudent && (
-            <Link to="/pets" className="flex items-center gap-1.5 rounded-full bg-secondary-fixed px-space-md py-space-xs text-label-lg font-extrabold text-on-secondary-fixed" title="Xu đổi thú cưng">
-              <Coin size={20} /> {user?.coins ?? 0}
-            </Link>
+            <div className="flex items-center gap-1 rounded-full bg-surface-container-low p-1">
+              <span className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-label-lg font-extrabold ${user?.streakDays ? 'bg-[#ffe3cc] text-[#c2410c]' : 'text-outline'}`}
+                title={`Chuỗi ${user?.streakDays || 0} ngày học liên tiếp`}>
+                <Icon name="local_fire_department" filled className="text-[20px]" /> {user?.streakDays ?? 0}
+              </span>
+              <span className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-label-lg font-extrabold ${(user?.energy ?? 5) > 0 ? 'bg-[#fff3c4] text-[#946200]' : 'bg-error-container text-error energy-pulse'}`}
+                title="Thể lực: mỗi lượt chơi tốn 1, tự hồi 1 điểm mỗi 30 phút">
+                <Icon name="bolt" filled className="text-[20px]" /> {user?.energy ?? 5}
+              </span>
+              <Link to="/pets" className="flex items-center gap-1 rounded-full bg-secondary-fixed px-2 py-0.5 text-label-lg font-extrabold text-on-secondary-fixed" title="Xu đổi thú cưng">
+                <Coin size={18} /> {user?.coins ?? 0}
+              </Link>
+            </div>
           )}
           {isStudent && (!sub || sub.trial) && (
             <Link to="/pricing" className="btn-primary hidden lg:inline-flex">
@@ -108,6 +134,12 @@ export default function Header() {
               <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl bg-surface-container-lowest py-1 shadow-[0_12px_24px_-4px_rgba(15,23,42,0.12)]">
                 {isStudent && (
                   <>
+                    <Link to="/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-space-sm px-space-md py-space-sm text-label-lg hover:bg-surface-container-low">
+                      <Icon name="account_circle" className="text-[20px] text-primary" /> Hồ sơ của em
+                    </Link>
+                    <Link to="/pricing" onClick={() => setMenuOpen(false)} className="flex items-center gap-space-sm px-space-md py-space-sm text-label-lg hover:bg-surface-container-low">
+                      <Icon name="workspace_premium" className="text-[20px] text-tertiary" /> Gói học
+                    </Link>
                     <Link to="/notifications" onClick={() => setMenuOpen(false)} className="flex items-center gap-space-sm px-space-md py-space-sm text-label-lg hover:bg-surface-container-low">
                       <Icon name="notifications" className="text-[20px] text-primary" /> Thông báo
                     </Link>

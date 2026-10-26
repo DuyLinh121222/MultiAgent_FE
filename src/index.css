@@ -164,3 +164,80 @@
 @media (prefers-reduced-motion: reduce) {
   .pet-bounce, .node-pulse, .boss-glow, .chest-wiggle, .star-pop, .pop-in { animation: none; }
 }
+
+/* ===================== Trang trí 2 bên & logo ===================== */
+@keyframes decor-float {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-16px) rotate(5deg); }
+}
+.decor-float { animation: decor-float 5s ease-in-out infinite; }
+@keyframes decor-drift {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(10px) translateY(-8px); }
+}
+.decor-drift { animation: decor-drift 7s ease-in-out infinite; }
+@keyframes decor-twinkle {
+  0%, 100% { opacity: 0.35; transform: scale(0.8) rotate(0); }
+  50% { opacity: 1; transform: scale(1.15) rotate(20deg); }
+}
+.decor-twinkle { animation: decor-twinkle 2.6s ease-in-out infinite; }
+@keyframes decor-spin { from { transform: rotateY(0); } to { transform: rotateY(360deg); } }
+.decor-spin { animation: decor-spin 3s linear infinite; }
+@keyframes logo-spark { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.25); } }
+.logo-spark { transform-box: fill-box; transform-origin: center; animation: logo-spark 2.4s ease-in-out infinite; }
+
+/* ===================== Đấu trường ===================== */
+@keyframes balloon-bob {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-10px) rotate(2deg); }
+}
+.balloon-bob { animation: balloon-bob 2.8s ease-in-out infinite; }
+@keyframes balloon-pop {
+  0% { transform: scale(1); opacity: 1; }
+  60% { transform: scale(1.25); opacity: 0.8; }
+  100% { transform: scale(0.2); opacity: 0; }
+}
+.balloon-pop { animation: balloon-pop 0.45s ease-out forwards; }
+@keyframes monster-hit {
+  0%, 100% { transform: translateX(0) scale(1); filter: none; }
+  20% { transform: translateX(-10px) scale(0.95); filter: brightness(1.8); }
+  40% { transform: translateX(8px) scale(1.02); }
+  60% { transform: translateX(-5px); }
+}
+.monster-hit { animation: monster-hit 0.5s ease; }
+@keyframes monster-idle {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  50% { transform: translateY(-6px) scale(1.03, 0.97); }
+}
+.monster-idle { animation: monster-idle 2s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes fireball {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate(var(--fx, 220px), var(--fy, -40px)) scale(1.3); opacity: 0.9; }
+}
+.fireball { animation: fireball 0.45s ease-in forwards; }
+@keyframes float-up {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-50px); opacity: 0; }
+}
+.float-up { animation: float-up 0.9s ease-out forwards; }
+@keyframes combo-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.combo-pop { animation: combo-pop 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.4); }
+@keyframes heart-lose {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); filter: grayscale(0); }
+  100% { transform: scale(1); filter: grayscale(1); opacity: 0.35; }
+}
+.heart-lose { animation: heart-lose 0.5s ease forwards; }
+@keyframes energy-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+.energy-pulse { animation: energy-pulse 1.4s ease-in-out infinite; }
+@keyframes banner-slide { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+.banner-slide { animation: banner-slide 0.5s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .decor-float, .decor-drift, .decor-twinkle, .decor-spin, .logo-spark, .balloon-bob, .monster-idle, .energy-pulse { animation: none; }
+}

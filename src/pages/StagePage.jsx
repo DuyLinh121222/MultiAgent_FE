@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import AchievementToast from '../components/game/AchievementToast'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import Icon from '../components/common/Icon'
 import Loading from '../components/common/Loading'
@@ -42,8 +43,17 @@ export default function StagePage({ boss = false }) {
 
   useEffect(() => { load() }, [load])
 
-  const startQuiz = () => {
+  const startQuiz = async () => {
     if (!stage.questions.length) return submit({})
+    // Kiểm tra thể lực trước khi làm bài (nộp bài tốn 1 thể lực)
+    try {
+      const p = await gameApi.profile()
+      patchUser({ energy: p.energy, streakDays: p.streakDays })
+      if (p.energy <= 0) {
+        window.dispatchEvent(new CustomEvent('mael:no-energy'))
+        return
+      }
+    } catch { /* vẫn cho làm, BE sẽ kiểm tra lại */ }
     setPhase('quiz')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -54,7 +64,7 @@ export default function StagePage({ boss = false }) {
     try {
       const r = boss ? await gameApi.submitBoss(id, ans) : await gameApi.submitStage(id, ans)
       setResult(r)
-      patchUser({ coins: r.profile.coins, xp: r.profile.xp })
+      patchUser({ coins: r.profile.coins, xp: r.profile.xp, energy: r.profile.energy, streakDays: r.profile.streakDays })
       setPhase('result')
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (e) {
@@ -92,6 +102,7 @@ export default function StagePage({ boss = false }) {
 
   const q = stage.questions[qIndex]
   const total = stage.questions.length
+  const shownOptions = shuffledOptions(q)
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-space-md px-margin-mobile py-space-lg md:px-margin">
@@ -158,18 +169,16 @@ export default function StagePage({ boss = false }) {
           </div>
 
           <div className="grid grid-cols-1 gap-space-sm sm:grid-cols-2">
-            {q.options.map((opt) => {
-              const letter = opt.trim().charAt(0)
-              const text = opt.replace(/^[A-D]\.\s*/, '')
+            {shownOptions.map(({ letter, text }, i) => {
               const selected = answers[q.id] === letter
               return (
-                <button key={opt} type="button" onClick={() => setAnswers((a) => ({ ...a, [q.id]: letter }))}
+                <button key={letter} type="button" onClick={() => setAnswers((a) => ({ ...a, [q.id]: letter }))}
                   className={`flex items-center gap-space-sm rounded-2xl border-[3px] p-space-md text-left text-body-lg transition-all active:scale-[0.98] ${
                     selected ? 'border-primary bg-primary-fixed/60 shadow-tactile' : 'border-surface-container bg-surface-container-lowest hover:border-primary-fixed-dim'
                   }`}>
                   <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-label-lg font-extrabold ${
                     selected ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant'
-                  }`}>{letter}</span>
+                  }`}>{String.fromCharCode(65 + i)}</span>
                   <span className="text-on-surface">{text}</span>
                 </button>
               )
@@ -194,7 +203,7 @@ export default function StagePage({ boss = false }) {
       )}
 
       {phase === 'result' && result && (
-        <ResultPhase result={result} boss={boss} onNext={goNext} onRetry={load} petCode={user?.activePetCode} />
+        <ResultPhase result={result} boss={boss} onNext={goNext} onRetry={load} petCode={user?.activePetCode} questions={stage.questions} />
       )}
     </div>
   )
@@ -243,6 +252,7 @@ function LearnPhase({ stage, petCode, onQuiz, onDiscuss, busy }) {
         </button>
         <button type="button" onClick={onQuiz} className="btn-primary px-space-lg py-space-md text-headline-sm">
           <Icon name="bolt" filled className="text-[22px]" /> {stage.questions.length ? `Thử thách (${stage.questions.length} câu)` : 'Hoàn thành ải'}
+          {stage.questions.length > 0 && <span className="ml-1 flex items-center rounded-full bg-white/20 px-1.5 text-label-md"><Icon name="bolt" filled className="text-[16px] text-secondary-container" />1</span>}
         </button>
       </div>
     </div>
@@ -279,14 +289,22 @@ function LessonContent({ content }) {
   )
 }
 
-function ResultPhase({ result, boss, onNext, onRetry, petCode }) {
+function ResultPhase({ result, boss, onNext, onRetry, petCode, questions = [] }) {
+  const textOf = (qid, letter) => {
+    const opt = questions.find((x) => x.id === qid)?.options.find((o) => letter && o.trim().startsWith(letter))
+    return opt ? opt.replace(/^[A-D]\.\s*/, '') : letter
+  }
   const [chestOpen, setChestOpen] = useState(!boss || !result.rewardPet)
   const passed = result.passed
   const headline = !passed ? 'Chưa qua ải rồi!' : result.stars === 3 ? 'Xuất sắc! 3 sao!' : 'Qua ải rồi!'
   return (
     <div className="flex flex-col gap-space-md">
+      <AchievementToast items={result.newAchievements} />
       <div className="pop-in relative flex flex-col items-center overflow-hidden rounded-[28px] bg-gradient-to-b from-primary-fixed to-surface-container-lowest p-space-xl text-center shadow-sm">
         {passed && chestOpen && <Confetti />}
+        {result.streakIncreased && (
+          <span className="chip pop-in mb-space-sm bg-[#ffe3cc] text-[#c2410c]"><Icon name="local_fire_department" filled className="text-[18px]" /> Chuỗi {result.streakDays} ngày!</span>
+        )}
         <Pet code={petCode} size={96} bounce={passed} className={passed ? '' : 'opacity-80 grayscale-[0.4]'} />
         <h1 className="mt-space-sm text-headline-lg text-on-surface">{headline}</h1>
         <p className="text-body-md text-on-surface-variant">Đúng {result.correct}/{result.total} câu</p>
@@ -365,7 +383,7 @@ function ResultPhase({ result, boss, onNext, onRetry, petCode }) {
                 <div className="flex-1">
                   <div className="text-label-lg text-on-surface">Câu {i + 1}. {r.content}</div>
                   <div className="mt-1 text-body-sm text-on-surface-variant">
-                    Em chọn: <b>{r.selectedAnswer || '—'}</b> • Đáp án đúng: <b className="text-tertiary">{r.correctAnswer}</b>
+                    Em chọn: <b>{textOf(r.questionId, r.selectedAnswer) || '—'}</b> • Đáp án đúng: <b className="text-tertiary">{textOf(r.questionId, r.correctAnswer)}</b>
                   </div>
                   {r.explanation && <div className="mt-1 text-body-md text-on-surface">{r.explanation}</div>}
                 </div>
@@ -401,6 +419,21 @@ function Confetti() {
       ))}
     </div>
   )
+}
+
+/** Xáo thứ tự đáp án mỗi câu (nhớ theo id câu để không đổi khi bấm chọn), chữ A/B/C/D đánh lại theo vị trí mới */
+const shuffleCache = new Map()
+function shuffledOptions(q) {
+  if (!q) return []
+  if (!shuffleCache.has(q.id)) {
+    const list = q.options.map((o) => ({ letter: o.trim().charAt(0), text: o.replace(/^[A-D]\.\s*/, '') }))
+    for (let i = list.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [list[i], list[j]] = [list[j], list[i]]
+    }
+    shuffleCache.set(q.id, list)
+  }
+  return shuffleCache.get(q.id)
 }
 
 export function rarityLabel(r) {

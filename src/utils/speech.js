@@ -43,6 +43,26 @@ export function speakableText(text) {
 
 let googleEnabled = null
 let currentAudio = null
+// Mỗi lần stopSpeaking() tăng lên 1: các câu đang xếp hàng của lượt cũ sẽ bị bỏ qua (tránh đọc lặp)
+let generation = 0
+const VOLUME_KEY = 'mael_voice_volume'
+
+/** Âm lượng 0..1, lưu trong trình duyệt */
+export function getVolume() {
+  try {
+    const v = parseFloat(localStorage.getItem(VOLUME_KEY))
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.8
+  } catch {
+    return 0.8
+  }
+}
+
+export function setVolume(v) {
+  const vol = Math.min(1, Math.max(0, v))
+  try { localStorage.setItem(VOLUME_KEY, String(vol)) } catch { /* bỏ qua */ }
+  if (currentAudio) currentAudio.volume = vol
+  return vol
+}
 
 async function isGoogleEnabled() {
   if (googleEnabled === null) {
@@ -70,6 +90,7 @@ function pickBrowserVoice(agentId) {
 }
 
 export function stopSpeaking() {
+  generation++
   if (currentAudio) {
     currentAudio.pause()
     currentAudio = null
@@ -77,19 +98,27 @@ export function stopSpeaking() {
   if ('speechSynthesis' in window) window.speechSynthesis.cancel()
 }
 
+/** Mã lượt đọc hiện tại: truyền vào speak() để câu của lượt cũ không đọc nữa */
+export function currentGeneration() {
+  return generation
+}
+
 /** Đọc một câu, trả về Promise xong khi đọc xong (để đọc lần lượt nhiều tin nhắn) */
-export async function speak(agentId, text) {
+export async function speak(agentId, text, gen = generation) {
   const content = speakableText(text)
-  if (!content) return
+  const volume = getVolume()
+  if (!content || volume <= 0 || gen !== generation) return
   if (await isGoogleEnabled()) {
     try {
       const blob = await ttsApi.speak(agentId, content)
+      if (gen !== generation) return
       if (blob) {
         const url = URL.createObjectURL(blob)
         await new Promise((resolve) => {
           const audio = new Audio(url)
+          audio.volume = getVolume()
           currentAudio = audio
-          audio.onended = audio.onerror = () => { URL.revokeObjectURL(url); resolve() }
+          audio.onended = audio.onerror = audio.onpause = () => { URL.revokeObjectURL(url); resolve() }
           audio.play().catch(resolve)
         })
         return
@@ -98,7 +127,7 @@ export async function speak(agentId, text) {
       // lỗi mạng / hết quota: chuyển sang giọng trình duyệt
     }
   }
-  if (!('speechSynthesis' in window)) return
+  if (!('speechSynthesis' in window) || gen !== generation) return
   const cfg = BROWSER_VOICE[agentId] || BROWSER_VOICE['agent-tutor']
   await new Promise((resolve) => {
     const u = new SpeechSynthesisUtterance(content)
@@ -107,7 +136,10 @@ export async function speak(agentId, text) {
     if (voice) u.voice = voice
     u.pitch = cfg.pitch
     u.rate = cfg.rate
-    u.onend = u.onerror = resolve
+    u.volume = volume
+    // Chrome đôi khi không gọi onend: tự kết thúc sau thời gian ước lượng để hàng đợi không bị kẹt
+    const timer = setTimeout(resolve, 2000 + content.length * 120)
+    u.onend = u.onerror = () => { clearTimeout(timer); resolve() }
     window.speechSynthesis.speak(u)
   })
 }
