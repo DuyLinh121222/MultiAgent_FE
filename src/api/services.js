@@ -147,3 +147,51 @@ export const lecturerApi = {
   reports: () => get('/api/lecturer/reports'),
   handleReport: (id, status, resolutionNote) => patch(`/api/lecturer/reports/${id}`, { status, resolutionNote }),
 }
+
+/** Cổng giảng viên mở rộng: tổng quan, lịch sử duyệt, duyệt hàng loạt, phân tích học tập */
+export const lecturerInsightApi = {
+  dashboard: () => get('/api/lecturer/dashboard'),
+  reviews: (mine = true, limit = 50) => get('/api/lecturer/reviews', { params: { mine, limit } }),
+  bulkReview: (payload) => post('/api/lecturer/review-bulk', payload),
+  analytics: (grade) => get('/api/lecturer/analytics', { params: { grade: grade || undefined } }),
+}
+
+/** Kho nội dung dùng chung giảng viên + admin: cây Lớp → Chương → Bài, ngân hàng câu hỏi */
+export const contentApi = {
+  tree: (grade) => get('/api/manage/content/tree', { params: { grade: grade || undefined } }),
+  createTopic: (payload) => post('/api/manage/topics', payload),
+  updateTopic: (id, payload) => put(`/api/manage/topics/${id}`, payload),
+  lessons: (status) => get('/api/manage/lessons', { params: { status: status || undefined } }),
+  lesson: (id) => get(`/api/manage/lessons/${id}`),
+  createLesson: (payload) => post('/api/manage/lessons', payload),
+  updateLesson: (id, payload) => put(`/api/manage/lessons/${id}`, payload),
+  archiveLesson: (id) => post(`/api/manage/lessons/${id}/archive`),
+  restoreLesson: (id) => post(`/api/manage/lessons/${id}/restore`),
+  questions: (params) => get('/api/manage/questions', { params }),
+  createQuestion: (payload) => post('/api/manage/questions', payload),
+  updateQuestion: (id, payload) => put(`/api/manage/questions/${id}`, payload),
+  archiveQuestion: (id) => post(`/api/manage/questions/${id}/archive`),
+  restoreQuestion: (id) => post(`/api/manage/questions/${id}/restore`),
+  resetStats: (id) => post(`/api/manage/questions/${id}/reset-stats`),
+}
+
+/** Cổng quản trị (chỉ ADMIN) */
+export const adminApi = {
+  overview: () => get('/api/admin/overview'),
+  users: (params) => get('/api/admin/users', { params }),
+  user: (id) => get(`/api/admin/users/${id}`),
+  createStaff: (payload) => post('/api/admin/users', payload),
+  updateUser: (id, payload) => put(`/api/admin/users/${id}`, payload),
+  setStatus: (id, status, reason) => patch(`/api/admin/users/${id}/status`, { status, reason }),
+  resetPassword: (id) => post(`/api/admin/users/${id}/reset-password`),
+  grantPlan: (id, planId, note) => post(`/api/admin/users/${id}/grant-plan`, { planId, note }),
+  plans: () => get('/api/admin/plans'),
+  createPlan: (payload) => post('/api/admin/plans', payload),
+  updatePlan: (id, payload) => put(`/api/admin/plans/${id}`, payload),
+  setPlanActive: (id, active) => client.patch(`/api/admin/plans/${id}/active`, null, { params: { active } }).then((r) => r.data),
+  payments: (params) => get('/api/admin/payments', { params }),
+  leads: () => get('/api/admin/leads'),
+  updateLead: (id, { status, adminNote }) =>
+    client.patch(`/api/admin/leads/${id}`, null, { params: { status: status || undefined, adminNote } }).then((r) => r.data),
+  auditLogs: (params) => get('/api/admin/audit-logs', { params }),
+}

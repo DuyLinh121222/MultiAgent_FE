@@ -191,7 +191,7 @@ export default function LecturerDocumentsPage() {
                       <Icon name="done_all" className="text-[18px]" /> Duyệt tất cả
                     </button>
                   )}
-                  <Link to="/lecturer" className="btn-secondary"><Icon name="fact_check" className="text-[18px]" /> Duyệt từng câu</Link>
+                  <Link to="/lecturer/review" className="btn-secondary"><Icon name="fact_check" className="text-[18px]" /> Duyệt từng câu</Link>
                   {d.aiStatus !== 'PROCESSING' && (
                     <button type="button" className="btn-ghost" onClick={() => act(() => documentApi.reprocess(d.id), 'AI đang đọc lại tài liệu')}>
                       <Icon name="refresh" className="text-[18px]" /> AI đọc lại

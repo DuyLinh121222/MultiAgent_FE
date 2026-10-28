@@ -3,6 +3,7 @@ import Logo from '../common/Logo'
 import Footer from './Footer'
 import Icon from '../common/Icon'
 import { useAuth } from '../../context/AuthContext'
+import { homeOf } from '../../utils/roles'
 
 const NAV = [
   { to: '/', label: 'Trang chủ', end: true },
@@ -15,7 +16,7 @@ const NAV = [
 /** Khung cho trang công khai (trang chủ khách, bảng giá, bài viết): không cần đăng nhập */
 export default function PublicLayout({ children }) {
   const { user } = useAuth()
-  const home = user ? (user.role === 'STUDENT' ? '/' : '/lecturer') : '/'
+  const home = user ? homeOf(user.role) : '/'
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 w-full bg-surface-container-lowest/95 shadow-[0_1px_8px_rgba(0,0,0,0.04)] backdrop-blur-md">

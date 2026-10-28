@@ -6,6 +6,7 @@ import Logo from '../components/common/Logo'
 import ErrorBox from '../components/common/ErrorBox'
 import { Spinner } from '../components/common/Loading'
 import { useAuth } from '../context/AuthContext'
+import { homeOf } from '../utils/roles'
 import { getErrorMessage } from '../api/client'
 import loginImg from '../assets/login.jpg'
 
@@ -35,7 +36,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  if (user) return <Navigate to={user.role === 'STUDENT' ? '/' : '/lecturer'} replace />
+  if (user) return <Navigate to={homeOf(user.role)} replace />
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
   const isRegister = mode === 'register'
@@ -50,7 +51,7 @@ export default function LoginPage() {
           captchaToken: captcha.token, captchaAnswer: captcha.answer })
         : await login(form.email.trim(), form.password)
       const from = location.state?.from?.pathname
-      navigate(u.role === 'STUDENT' ? from || '/' : '/lecturer', { replace: true })
+      navigate(u.role === 'STUDENT' ? from || '/' : homeOf(u.role), { replace: true })
     } catch (err) {
       setError(getErrorMessage(err))
       if (isRegister) setCaptchaKey((k) => k + 1)

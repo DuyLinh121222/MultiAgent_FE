@@ -24,20 +24,32 @@ import CheckoutPage from './pages/CheckoutPage'
 import NotificationsPage from './pages/NotificationsPage'
 import AchievementsPage from './pages/AchievementsPage'
 import ProfilePage from './pages/ProfilePage'
+import StaffLayout from './components/staff/StaffLayout'
+import LecturerDashboardPage from './pages/lecturer/LecturerDashboardPage'
 import LecturerReviewPage from './pages/lecturer/LecturerReviewPage'
+import ContentBankPage from './pages/lecturer/ContentBankPage'
+import AnalyticsPage from './pages/lecturer/AnalyticsPage'
+import ReviewHistoryPage from './pages/lecturer/ReviewHistoryPage'
 import LecturerDocumentsPage from './pages/lecturer/LecturerDocumentsPage'
 import LecturerBlogPage from './pages/lecturer/LecturerBlogPage'
+import AdminDashboardPage from './pages/admin/AdminDashboardPage'
+import AdminUsersPage from './pages/admin/AdminUsersPage'
+import AdminPlansPage from './pages/admin/AdminPlansPage'
+import AdminPaymentsPage from './pages/admin/AdminPaymentsPage'
+import AdminLeadsPage from './pages/admin/AdminLeadsPage'
+import AdminAuditPage from './pages/admin/AdminAuditPage'
 import NotFoundPage from './pages/NotFoundPage'
+import { homeOf } from './utils/roles'
 
 /**
  * Trang "/": khách thấy trang giới thiệu (banner tin tức, bảng giá, liên hệ),
- * học sinh thấy bản đồ ải, giảng viên / admin vào cổng duyệt nội dung.
+ * học sinh thấy bản đồ ải, giảng viên vào cổng giảng viên, admin vào cổng quản trị.
  */
 function HomeGate() {
   const { user, loading } = useAuth()
   if (loading) return <Loading />
   if (!user) return <PublicLayout><LandingPage /></PublicLayout>
-  if (user.role !== 'STUDENT') return <Navigate to="/lecturer" replace />
+  if (user.role !== 'STUDENT') return <Navigate to={homeOf(user.role)} replace />
   if (user.onboarded === false) return <Navigate to="/welcome" replace />
   return <AppLayout><HomePage /></AppLayout>
 }
@@ -77,12 +89,28 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* Giảng viên / Admin */}
+      {/* Giảng viên (admin cũng dùng được các trang nội dung) */}
       <Route element={<ProtectedRoute roles={['LECTURER', 'ADMIN']} />}>
-        <Route element={<AppLayout />}>
-          <Route path="lecturer" element={<LecturerReviewPage />} />
+        <Route element={<StaffLayout />}>
+          <Route path="lecturer" element={<LecturerDashboardPage />} />
+          <Route path="lecturer/review" element={<LecturerReviewPage />} />
+          <Route path="lecturer/content" element={<ContentBankPage />} />
+          <Route path="lecturer/analytics" element={<AnalyticsPage />} />
+          <Route path="lecturer/history" element={<ReviewHistoryPage />} />
           <Route path="lecturer/documents" element={<LecturerDocumentsPage />} />
           <Route path="lecturer/blog" element={<LecturerBlogPage />} />
+        </Route>
+      </Route>
+
+      {/* Quản trị viên */}
+      <Route element={<ProtectedRoute roles={['ADMIN']} />}>
+        <Route element={<StaffLayout />}>
+          <Route path="admin" element={<AdminDashboardPage />} />
+          <Route path="admin/users" element={<AdminUsersPage />} />
+          <Route path="admin/plans" element={<AdminPlansPage />} />
+          <Route path="admin/payments" element={<AdminPaymentsPage />} />
+          <Route path="admin/leads" element={<AdminLeadsPage />} />
+          <Route path="admin/audit" element={<AdminAuditPage />} />
         </Route>
       </Route>
 
