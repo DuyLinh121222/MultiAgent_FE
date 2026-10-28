@@ -15,9 +15,6 @@ export default function Footer() {
           </div>
         </div>
         <div className="flex flex-col gap-1.5">
-          <a href={`tel:${CONTACT.phone}`} className="flex items-center gap-2 font-semibold text-on-surface hover:text-primary">
-            <Icon name="call" className="text-[18px] text-primary" /> {CONTACT.phoneDisplay}
-          </a>
           <a href={`mailto:${CONTACT.email}`} className="flex items-center gap-2 font-semibold text-on-surface hover:text-primary">
             <Icon name="mail" className="text-[18px] text-primary" /> {CONTACT.email}
           </a>

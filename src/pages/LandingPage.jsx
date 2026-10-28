@@ -204,19 +204,10 @@ export default function LandingPage() {
           <div className="lg:col-span-5">
             <div className="text-label-md uppercase tracking-[0.2em] text-primary-fixed">Liên hệ</div>
             <h2 className="mt-1 text-headline-lg font-extrabold">Phụ huynh, trung tâm, nhà trường cần tư vấn?</h2>
-            <p className="mt-space-sm text-body-lg text-primary-fixed">Gọi hoặc gửi email, MAEL.EDU phản hồi trong 1 ngày làm việc.</p>
+            <p className="mt-space-sm text-body-lg text-primary-fixed">Gửi email cho MAEL.EDU, chúng mình phản hồi trong 1 ngày làm việc.</p>
           </div>
           <div className="grid grid-cols-1 gap-space-md sm:grid-cols-2 lg:col-span-7">
-            <a href={`tel:${CONTACT.phone}`} className="flex items-center gap-space-md rounded-[24px] bg-white p-space-lg text-on-surface shadow-lg transition-transform hover:-translate-y-1">
-              <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-tertiary-fixed text-tertiary">
-                <Icon name="call" filled className="text-[30px]" />
-              </span>
-              <div>
-                <div className="text-label-md text-on-surface-variant">Hotline / Zalo</div>
-                <div className="text-headline-md font-black text-primary">{CONTACT.phoneDisplay}</div>
-              </div>
-            </a>
-            <a href={`mailto:${CONTACT.email}`} className="flex items-center gap-space-md rounded-[24px] bg-white p-space-lg text-on-surface shadow-lg transition-transform hover:-translate-y-1">
+            <a href={`mailto:${CONTACT.email}`} className="flex items-center gap-space-md rounded-[24px] bg-white p-space-lg text-on-surface shadow-lg transition-transform hover:-translate-y-1 sm:col-span-2">
               <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-secondary-fixed text-secondary">
                 <Icon name="mail" filled className="text-[30px]" />
               </span>

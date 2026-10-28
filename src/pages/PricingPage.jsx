@@ -295,7 +295,7 @@ function OrgSection({ plans, orgType }) {
           <form className="relative flex flex-col gap-space-sm" onSubmit={submit}>
             <h3 className="text-headline-sm text-on-surface">Nhận báo giá & demo miễn phí</h3>
             <p className="text-body-sm text-on-surface-variant">
-              Để lại thông tin, chuyên viên MAEL sẽ liên hệ. Hoặc gọi ngay <a className="font-bold text-primary" href={`tel:${CONTACT.phone}`}>{CONTACT.phoneDisplay}</a>
+              Để lại thông tin, chuyên viên MAEL sẽ liên hệ. Hoặc email <a className="font-bold text-primary" href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
             </p>
             <input className="input h-12" placeholder={isSchool ? 'Tên trường *' : 'Tên trung tâm *'} value={form.orgName} onChange={set('orgName')} required />
             <input className="input h-12" placeholder="Người liên hệ *" value={form.contactName} onChange={set('contactName')} required />

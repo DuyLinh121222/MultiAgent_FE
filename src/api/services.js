@@ -50,7 +50,8 @@ export const paymentApi = {
   create: (planId) => post('/api/payments', { planId }),
   get: (paymentId) => get(`/api/payments/${paymentId}`),
   list: () => get('/api/payments'),
-  mockConfirm: (paymentId) => post(`/api/payments/${paymentId}/mock-confirm`),
+  /** Học sinh báo đã chuyển khoản qua QR MoMo */
+  markPaid: (paymentId) => post(`/api/payments/${paymentId}/mark-paid`),
 }
 
 export const quizApi = {
@@ -190,6 +191,9 @@ export const adminApi = {
   updatePlan: (id, payload) => put(`/api/admin/plans/${id}`, payload),
   setPlanActive: (id, active) => client.patch(`/api/admin/plans/${id}/active`, null, { params: { active } }).then((r) => r.data),
   payments: (params) => get('/api/admin/payments', { params }),
+  confirmPayment: (id, note) => post(`/api/admin/payments/${id}/confirm`, { note }),
+  rejectPayment: (id, note) => post(`/api/admin/payments/${id}/reject`, { note }),
+  adjustCoins: (id, amount, reason) => post(`/api/admin/users/${id}/coins`, { amount, reason }),
   leads: () => get('/api/admin/leads'),
   updateLead: (id, { status, adminNote }) =>
     client.patch(`/api/admin/leads/${id}`, null, { params: { status: status || undefined, adminNote } }).then((r) => r.data),

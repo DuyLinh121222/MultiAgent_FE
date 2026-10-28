@@ -11,10 +11,14 @@ import { AUDIT_ACTION } from './AdminAuditPage'
 
 export const PAYMENT_STATUS = {
   SUCCESS: { label: 'Thành công', tone: 'green' },
-  PENDING: { label: 'Chờ thanh toán', tone: 'orange' },
-  FAILED: { label: 'Thất bại', tone: 'red' },
+  PENDING: { label: 'Chưa chuyển', tone: 'gray' },
+  WAITING: { label: 'Chờ xác nhận', tone: 'orange' },
+  FAILED: { label: 'Bị từ chối', tone: 'red' },
   REFUNDED: { label: 'Hoàn tiền', tone: 'gray' },
 }
+
+/** Đơn PENDING mà học sinh đã báo chuyển khoản = chờ admin xác nhận */
+export const payStatusKey = (p) => (p.status === 'PENDING' && p.customerPaidAt ? 'WAITING' : p.status)
 
 const shortVND = (v) => {
   const n = Number(v || 0)
@@ -43,6 +47,7 @@ export default function AdminDashboardPage() {
     ? Math.round(((Number(s.revenueThisMonth) - Number(s.revenueLastMonth)) / Number(s.revenueLastMonth)) * 100)
     : null
   const todo = [
+    { to: '/admin/payments', icon: 'price_check', label: 'Thanh toán chờ xác nhận', value: s.waitingPayments },
     { to: '/lecturer/review', icon: 'menu_book', label: 'Bài giảng chờ duyệt', value: s.pendingLessons },
     { to: '/lecturer/review?tab=questions', icon: 'quiz', label: 'Câu hỏi chờ duyệt', value: s.pendingQuestions },
     { to: '/lecturer/review?tab=reports', icon: 'flag', label: 'Báo lỗi từ học sinh', value: s.openReports },

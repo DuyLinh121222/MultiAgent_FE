@@ -12,7 +12,7 @@ import { getErrorMessage } from '../../api/client'
 import { formatDate, formatDateTime, formatVND, timeAgo } from '../../utils/format'
 import { ROLE_LABEL } from '../../utils/roles'
 import { useAuth } from '../../context/AuthContext'
-import { PAYMENT_STATUS } from './AdminDashboardPage'
+import { PAYMENT_STATUS, payStatusKey } from './AdminDashboardPage'
 
 const SIZE = 15
 const ROLE_TONE = { STUDENT: 'primary', LECTURER: 'green', ADMIN: 'dark' }
@@ -285,6 +285,9 @@ function UserDetailModal({ userId, onClose, onChanged, onError }) {
             {u.role === 'STUDENT' && (
               <button type="button" className="btn-secondary" onClick={() => setMode('grant')}><Icon name="card_giftcard" className="text-[18px]" /> Kích hoạt gói</button>
             )}
+            {u.role === 'STUDENT' && (
+              <button type="button" className="btn-secondary" onClick={() => setMode('coins')}><Icon name="paid" className="text-[18px]" /> Nạp xu</button>
+            )}
             <button type="button" className="btn-secondary" disabled={busy} onClick={async () => {
               if (!window.confirm(`Cấp mật khẩu mới cho ${u.email}? Mật khẩu cũ sẽ không dùng được nữa.`)) return
               const res = await run(() => adminApi.resetPassword(userId), 'Đã cấp lại mật khẩu')
@@ -338,7 +341,7 @@ function UserDetailModal({ userId, onClose, onChanged, onError }) {
               <Section title="Thanh toán">
                 {s.payments.length === 0 ? <Muted>Chưa có giao dịch</Muted> : s.payments.map((p) => (
                   <Row key={p.id} left={`${p.planName} • ${formatVND(p.amount)}`} sub={formatDateTime(p.createdAt)}
-                    right={<Badge tone={PAYMENT_STATUS[p.status]?.tone}>{PAYMENT_STATUS[p.status]?.label}</Badge>} />
+                    right={<Badge tone={PAYMENT_STATUS[payStatusKey(p)]?.tone}>{PAYMENT_STATUS[payStatusKey(p)]?.label}</Badge>} />
                 ))}
               </Section>
               <Section title="Điểm yếu đang theo dõi">
@@ -367,6 +370,8 @@ function UserDetailModal({ userId, onClose, onChanged, onError }) {
         onSave={(payload) => run(() => adminApi.updateUser(userId, payload), 'Đã lưu hồ sơ')} />}
       {mode === 'lock' && d && <LockModal email={u.email} busy={busy} onClose={() => setMode(null)}
         onSave={(reason) => run(() => adminApi.setStatus(userId, 'LOCKED', reason), 'Đã khoá tài khoản')} />}
+      {mode === 'coins' && d && <CoinModal name={u.fullName} current={s?.coins ?? 0} busy={busy} onClose={() => setMode(null)}
+        onSave={(amount, reason) => run(() => adminApi.adjustCoins(userId, amount, reason), amount > 0 ? `Đã nạp ${amount} xu` : `Đã trừ ${-amount} xu`)} />}
       {mode === 'grant' && d && <GrantModal name={u.fullName} busy={busy} onClose={() => setMode(null)}
         onSave={(planId, note) => run(() => adminApi.grantPlan(userId, planId, note), 'Đã kích hoạt gói')} />}
     </Modal>
@@ -430,6 +435,40 @@ function LockModal({ email, busy, onClose, onSave }) {
         <Field label="Lý do (ghi vào nhật ký)">
           <textarea className={areaCls} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="Ví dụ: tài khoản spam, phụ huynh yêu cầu..." />
         </Field>
+      </div>
+    </Modal>
+  )
+}
+
+function CoinModal({ name, current, busy, onClose, onSave }) {
+  const [sign, setSign] = useState(1)
+  const [amount, setAmount] = useState(100)
+  const [reason, setReason] = useState('')
+  const value = sign * (Number(amount) || 0)
+  const after = current + value
+  return (
+    <Modal open title="Nạp / trừ xu" onClose={onClose} footer={<>
+      <button type="button" className="btn-secondary" onClick={onClose}>Huỷ</button>
+      <button type="button" className="btn-primary" disabled={busy || !value || !reason.trim() || after < 0} onClick={() => onSave(value, reason)}>
+        {sign > 0 ? `Nạp ${Math.abs(value)} xu` : `Trừ ${Math.abs(value)} xu`}
+      </button>
+    </>}>
+      <div className="flex flex-col gap-space-md">
+        <p className="text-body-md text-on-surface-variant"><b>{name}</b> đang có <b>{current}</b> xu. Học sinh nhận thông báo kèm lý do.</p>
+        <Segmented value={sign} onChange={setSign} options={[{ value: 1, label: 'Nạp thêm' }, { value: -1, label: 'Trừ bớt' }]} />
+        <Field label="Số xu">
+          <input type="number" min={1} max={100000} className={fieldCls} value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </Field>
+        <div className="flex flex-wrap gap-1">
+          {[50, 100, 200, 500, 1000].map((n) => (
+            <button key={n} type="button" className="rounded-full bg-surface-container px-3 py-1 text-label-md hover:bg-surface-container-high" onClick={() => setAmount(n)}>{n}</button>
+          ))}
+        </div>
+        <Field label="Lý do (học sinh sẽ thấy)">
+          <input className={fieldCls} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300}
+            placeholder={sign > 0 ? 'Ví dụ: Thưởng top 1 Đấu trường tuần này' : 'Ví dụ: Thu hồi xu cộng nhầm'} />
+        </Field>
+        <p className={`text-label-lg ${after < 0 ? 'text-error' : 'text-on-surface'}`}>Sau khi lưu: {after} xu{after < 0 ? ' (không được âm)' : ''}</p>
       </div>
     </Modal>
   )

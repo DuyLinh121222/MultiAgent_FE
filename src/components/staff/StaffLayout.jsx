@@ -3,24 +3,24 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import Icon from '../common/Icon'
 import Logo from '../common/Logo'
 import { useAuth } from '../../context/AuthContext'
-import { lecturerInsightApi } from '../../api/services'
+import { adminApi, lecturerInsightApi } from '../../api/services'
 import { homeOf, ROLE_LABEL } from '../../utils/roles'
 
 /**
  * Menu bên trái cho cổng giảng viên / quản trị.
  * Admin thấy thêm nhóm "Quản trị"; cả 2 role đều dùng nhóm "Nội dung & học tập".
  */
-const ADMIN_GROUP = {
+const ADMIN_GROUP = (waiting) => ({
   title: 'Quản trị',
   items: [
     { to: '/admin', label: 'Tổng quan', icon: 'space_dashboard', end: true },
     { to: '/admin/users', label: 'Người dùng', icon: 'group' },
     { to: '/admin/plans', label: 'Gói học', icon: 'workspace_premium' },
-    { to: '/admin/payments', label: 'Giao dịch', icon: 'receipt_long' },
+    { to: '/admin/payments', label: 'Giao dịch', icon: 'receipt_long', badgeKey: 'payments' },
     { to: '/admin/leads', label: 'Tư vấn trường / TT', icon: 'handshake' },
     { to: '/admin/audit', label: 'Nhật ký thao tác', icon: 'history' },
-  ],
-}
+  ].map((n) => (n.badgeKey === 'payments' ? { ...n, badge: waiting } : n)),
+})
 
 const CONTENT_GROUP = (isAdmin, pending) => ({
   title: isAdmin ? 'Nội dung & học tập' : 'Giảng dạy',
@@ -49,6 +49,7 @@ export default function StaffLayout() {
   const [open, setOpen] = useState(false)
   const [menu, setMenu] = useState(false)
   const [pending, setPending] = useState(0)
+  const [waitingPayments, setWaitingPayments] = useState(0)
   const menuRef = useRef(null)
   const isAdmin = user?.role === 'ADMIN'
 
@@ -57,7 +58,11 @@ export default function StaffLayout() {
     lecturerInsightApi.dashboard()
       .then((d) => setPending(d.pendingLessons + d.pendingQuestions + d.openReports))
       .catch(() => {})
-  }, [pathname])
+    // Admin: số thanh toán QR MoMo học sinh đã báo chuyển, chờ xác nhận
+    if (user?.role === 'ADMIN') {
+      adminApi.payments({ status: 'WAITING', size: 1 }).then((r) => setWaitingPayments(r.waitingCount)).catch(() => {})
+    }
+  }, [pathname, user?.role])
 
   useEffect(() => setOpen(false), [pathname])
 
@@ -67,7 +72,7 @@ export default function StaffLayout() {
     return () => document.removeEventListener('mousedown', close)
   }, [])
 
-  const groups = isAdmin ? [ADMIN_GROUP, CONTENT_GROUP(true, pending)] : [CONTENT_GROUP(false, pending)]
+  const groups = isAdmin ? [ADMIN_GROUP(waitingPayments), CONTENT_GROUP(true, pending)] : [CONTENT_GROUP(false, pending)]
 
   const sidebar = (
     <nav className="flex flex-col gap-space-lg">

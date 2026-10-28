@@ -19,6 +19,9 @@ export const AUDIT_ACTION = {
   UPDATE_PLAN: { label: 'Sửa gói', icon: 'edit' },
   HIDE_PLAN: { label: 'Ẩn gói', icon: 'visibility_off' },
   SHOW_PLAN: { label: 'Hiện gói', icon: 'visibility' },
+  CONFIRM_PAYMENT: { label: 'Xác nhận thanh toán', icon: 'price_check' },
+  REJECT_PAYMENT: { label: 'Từ chối thanh toán', icon: 'money_off' },
+  ADJUST_COINS: { label: 'Nạp / trừ xu', icon: 'paid' },
 }
 
 const SIZE = 30
