@@ -71,7 +71,7 @@ export default function Header() {
             {nav.map((n) => (
               <NavLink key={n.to} to={n.to} end={n.end} className={navClass} title={n.label}>
                 <Icon name={n.icon} className="text-[20px]" />
-                <span className={isStudent ? 'hidden 2xl:inline' : ''}>{n.label}</span>
+                <span className={isStudent ? 'hidden min-[1700px]:inline' : ''}>{n.label}</span>
               </NavLink>
             ))}
           </nav>
@@ -79,13 +79,13 @@ export default function Header() {
 
         <div className="flex flex-shrink-0 items-center gap-space-md">
           {isStudent && sub?.trial && (
-            <Link to="/profile" className="hidden items-center gap-space-xs rounded-full bg-secondary-fixed px-space-md py-space-xs text-on-secondary-fixed 2xl:flex" title="Xem ngày hết hạn">
+            <Link to="/profile" className="hidden items-center gap-space-xs rounded-full bg-secondary-fixed px-space-md py-space-xs text-on-secondary-fixed min-[2200px]:flex" title="Xem ngày hết hạn">
               <Icon name="schedule" className="text-[18px]" />
               <span className="text-label-md">Dùng thử: còn {sub.daysLeft} ngày</span>
             </Link>
           )}
           {isStudent && !sub && (
-            <Link to="/pricing" className="hidden items-center gap-space-xs rounded-full bg-error-container px-space-md py-space-xs text-on-error-container 2xl:flex">
+            <Link to="/pricing" className="hidden items-center gap-space-xs rounded-full bg-error-container px-space-md py-space-xs text-on-error-container min-[2200px]:flex">
               <Icon name="error" className="text-[18px]" />
               <span className="text-label-md">Gói học đã hết hạn</span>
             </Link>
@@ -109,6 +109,8 @@ export default function Header() {
             <Link to="/pricing" className="btn-primary hidden lg:inline-flex">
               <Icon name="bolt" className="text-[18px]" />
               <span>Kích hoạt gói</span>
+              {/* Màn hình hẹp không hiện thẻ "Dùng thử: còn N ngày" nên báo luôn trên nút */}
+              {sub?.trial && <span className="rounded-full bg-on-primary/20 px-1.5 text-label-sm min-[2200px]:hidden">còn {sub.daysLeft} ngày</span>}
             </Link>
           )}
           {isStudent && sub && !sub.trial && (

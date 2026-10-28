@@ -11,6 +11,22 @@ import momoImg from '../assets/momo.jpg'
 
 const PAYMENT_WINDOW_SECONDS = 10 * 60
 
+/** 30 ngày = tháng, 150 ngày = học kỳ, 365 ngày = năm, còn lại ghi số ngày */
+const periodLabel = (days) => {
+  if (!days) return 'gói'
+  if (days >= 28 && days <= 31) return 'tháng'
+  if (days >= 120 && days <= 160) return `học kỳ (${Math.round(days / 30)} tháng)`
+  if (days >= 360 && days <= 366) return 'năm'
+  return `${days} ngày`
+}
+
+/** Giá mỗi ngày làm tròn: 99.000đ/30 ngày = 3,3k; 399.000đ/150 ngày = 2,7k */
+const perDay = (amount, days) => {
+  if (!days) return ''
+  const k = Number(amount) / days / 1000
+  return `${k.toFixed(1).replace('.0', '').replace('.', ',')}k`
+}
+
 /**
  * Trang thanh toán MoMo.
  * Hiện chưa tích hợp MoMo thật: payUrl = null, có nút "Giả lập thanh toán thành công" để test luồng.
@@ -85,7 +101,7 @@ export default function CheckoutPage() {
     <div className="mx-auto w-full max-w-[1360px] px-margin-mobile py-space-lg md:px-margin">
       <div className="mb-space-lg flex flex-col items-center space-y-space-xs text-center">
         <span className="chip bg-secondary-fixed font-bold uppercase tracking-wide text-on-secondary-fixed">
-          <Icon name="bolt" className="text-[18px] text-secondary" /> {formatVND(payment.amount)} / tháng • Chỉ 3k/ngày
+          <Icon name="bolt" className="text-[18px] text-secondary" /> {formatVND(payment.amount)} / {periodLabel(payment.durationDays)} • Chỉ {perDay(payment.amount, payment.durationDays)}/ngày
         </span>
         <h1 className="text-headline-lg tracking-tight text-primary md:text-display">Nâng cấp {payment.planName}</h1>
         <p className="max-w-xl text-body-md text-on-surface-variant">Mở khoá phòng học nhóm 3 AI, camera giải đề và quiz củng cố không giới hạn.</p>
