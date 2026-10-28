@@ -3,7 +3,9 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import Icon from '../common/Icon'
 import Logo from '../common/Logo'
 import { useAuth } from '../../context/AuthContext'
-import { adminApi, lecturerInsightApi } from '../../api/services'
+import { adminApi, lecturerInsightApi, profileApi } from '../../api/services'
+import { getErrorMessage } from '../../api/client'
+import { Field, fieldCls, Modal, useToast } from './ui'
 import { homeOf, ROLE_LABEL } from '../../utils/roles'
 
 /**
@@ -48,6 +50,8 @@ export default function StaffLayout() {
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
   const [menu, setMenu] = useState(false)
+  const [pwOpen, setPwOpen] = useState(false)
+  const [toast, showToast] = useToast()
   const [pending, setPending] = useState(0)
   const [waitingPayments, setWaitingPayments] = useState(0)
   const menuRef = useRef(null)
@@ -126,6 +130,10 @@ export default function StaffLayout() {
               <Link to="/" onClick={() => setMenu(false)} className="flex items-center gap-space-sm px-space-md py-space-sm text-label-lg hover:bg-surface-container-low">
                 <Icon name="public" className="text-[20px] text-primary" /> Xem trang chủ
               </Link>
+              <button type="button" onClick={() => { setMenu(false); setPwOpen(true) }}
+                className="flex w-full items-center gap-space-sm px-space-md py-space-sm text-label-lg hover:bg-surface-container-low">
+                <Icon name="key" className="text-[20px] text-primary" /> Đổi mật khẩu
+              </button>
               <button type="button" onClick={() => { logout(); navigate('/') }}
                 className="flex w-full items-center gap-space-sm px-space-md py-space-sm text-label-lg text-error hover:bg-error-container/50">
                 <Icon name="logout" className="text-[20px]" /> Đăng xuất
@@ -150,6 +158,46 @@ export default function StaffLayout() {
       <main className="overflow-x-hidden pt-16 lg:pl-64">
         <Outlet />
       </main>
+      {toast}
+      {pwOpen && <ChangePasswordModal onClose={() => setPwOpen(false)} onDone={() => { setPwOpen(false); showToast('Đã đổi mật khẩu') }} />}
     </div>
+  )
+}
+
+/** Đổi mật khẩu của chính mình (admin / giảng viên) */
+function ChangePasswordModal({ onClose, onDone }) {
+  const [f, setF] = useState({ current: '', next: '', again: '' })
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }))
+  const submit = async (e) => {
+    e.preventDefault()
+    if (f.next.length < 8) return setError('Mật khẩu mới tối thiểu 8 ký tự')
+    if (f.next !== f.again) return setError('Nhập lại mật khẩu mới chưa khớp')
+    setBusy(true)
+    setError('')
+    try {
+      await profileApi.changePassword(f.current, f.next)
+      onDone()
+    } catch (err) {
+      setError(getErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Modal open title="Đổi mật khẩu" onClose={onClose} footer={<>
+      <button type="button" className="btn-secondary" onClick={onClose}>Huỷ</button>
+      <button type="submit" form="change-pw" className="btn-primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Đổi mật khẩu'}</button>
+    </>}>
+      <form id="change-pw" onSubmit={submit} className="flex flex-col gap-space-md">
+        {error && <p className="rounded-xl bg-error-container px-space-md py-space-sm text-label-lg text-on-error-container">{error}</p>}
+        <Field label="Mật khẩu hiện tại"><input type="password" className={fieldCls} value={f.current} onChange={set('current')} required autoComplete="current-password" /></Field>
+        <Field label="Mật khẩu mới" hint="Tối thiểu 8 ký tự, không dùng chung với tài khoản khác">
+          <input type="password" className={fieldCls} value={f.next} onChange={set('next')} required autoComplete="new-password" />
+        </Field>
+        <Field label="Nhập lại mật khẩu mới"><input type="password" className={fieldCls} value={f.again} onChange={set('again')} required autoComplete="new-password" /></Field>
+      </form>
+    </Modal>
   )
 }
