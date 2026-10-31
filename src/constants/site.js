@@ -5,8 +5,8 @@ export const CONTACT = {
 
 /** Thanh toán gói học: quét QR quỹ MoMo "Mael", ghi đúng nội dung chuyển khoản để admin đối chiếu */
 export const PAYMENT_QR = {
-  owner: 'NGUYEN HOANG KHANG',
+  owner: 'TRAN DUY MINH',
   bank: 'MoMo',
-  account: 'PSG2630110600000039',
+  account: 'PSP2605813100000109',
   fundName: 'Mael',
 }
