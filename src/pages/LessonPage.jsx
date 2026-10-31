@@ -67,7 +67,7 @@ export default function LessonPage() {
           <h1 className="text-headline-lg-mobile text-on-surface md:text-headline-lg">{lesson.title}</h1>
           <ProgressBar value={lesson.progressPercent} />
 
-          <div className="whitespace-pre-line rounded-xl bg-surface-container-low p-space-lg text-body-lg leading-8 text-on-surface">
+          <div className="whitespace-pre-line rounded-xl bg-surface-container-low p-space-lg text-[19px] leading-9 text-on-surface">
             {lesson.content}
           </div>
 

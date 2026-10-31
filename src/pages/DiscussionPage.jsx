@@ -244,7 +244,7 @@ export default function DiscussionPage() {
                   <span className="flex items-center gap-2"><Icon name="menu_book" className="text-[20px] text-primary" /> Lý thuyết bài học</span>
                   <Icon name="expand_more" className="text-[20px] text-outline transition-transform group-open:rotate-180" />
                 </summary>
-                <div className="mt-space-sm max-h-80 overflow-y-auto whitespace-pre-line pt-space-sm text-body-sm text-on-surface-variant">
+                <div className="mt-space-sm max-h-[28rem] overflow-y-auto whitespace-pre-line pt-space-sm text-body-lg leading-7 text-on-surface">
                   {session.lessonContent}
                 </div>
               </details>

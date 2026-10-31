@@ -9,10 +9,22 @@ import { ttsApi } from '../api/services'
 // Giọng trình duyệt: pitch 0-2, rate 0.1-10. Thầy trầm & chậm, Kiệt cao & nhanh, An trong & vui
 // gender: giọng nam / nữ ưu tiên. Mỗi máy có bộ giọng khác nhau nên KHÔNG chọn theo thứ tự danh sách
 // (thứ tự khác nhau giữa Windows / Mac / Chrome / Edge) mà chọn theo tên giọng đã biết.
+// Khi máy chỉ có 1 giọng tiếng Việt, 3 AI phân biệt bằng cao độ + tốc độ (để chênh lệch rõ).
+// Lưu ý: giọng online của Chrome ("Google Tiếng Việt") bỏ qua pitch, chỉ nghe được khác biệt tốc độ.
 const BROWSER_VOICE = {
-  'agent-tutor': { pitch: 0.8, rate: 0.95, gender: 'male', slot: 0 },
-  'agent-critic': { pitch: 1.25, rate: 1.1, gender: 'male', slot: 1 },
-  'agent-creative': { pitch: 1.35, rate: 1.05, gender: 'female', slot: 0 },
+  'agent-tutor': { pitch: 0.7, rate: 0.9, gender: 'male', slot: 0 },
+  'agent-critic': { pitch: 1.35, rate: 1.15, gender: 'male', slot: 1 },
+  'agent-creative': { pitch: 1.6, rate: 1.02, gender: 'female', slot: 0 },
+}
+
+// Nghỉ giữa các câu trong một tin nhắn và giữa tin nhắn của các AI (ms)
+const PAUSE_SENTENCE = 250
+const PAUSE_MESSAGE = 700
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+/** Tách tin nhắn thành từng câu: đọc từng câu có ngắt nghỉ, và tránh lỗi Chrome cắt ngang câu dài */
+function splitSentences(text) {
+  return text.split(/(?<=[.!?…])\s+|\n+/).map((t) => t.trim()).filter(Boolean)
 }
 
 // Giọng tiếng Việt phổ biến, xếp theo chất lượng (tốt trước). Khớp theo tên, không phân biệt hoa thường
@@ -175,6 +187,7 @@ export async function speak(agentId, text, gen = generation) {
           audio.onended = audio.onerror = audio.onpause = () => { URL.revokeObjectURL(url); resolve() }
           audio.play().catch(resolve)
         })
+        if (gen === generation) await sleep(PAUSE_MESSAGE)
         return
       }
     } catch {
@@ -190,18 +203,25 @@ export async function speak(agentId, text, gen = generation) {
     return
   }
   const cfg = BROWSER_VOICE[agentId] || BROWSER_VOICE['agent-tutor']
-  await new Promise((resolve) => {
-    const u = new SpeechSynthesisUtterance(content)
-    u.voice = voice
-    u.lang = voice.lang || 'vi-VN'
-    u.pitch = cfg.pitch
-    u.rate = cfg.rate
-    u.volume = volume
-    // Chrome đôi khi không gọi onend: tự kết thúc sau thời gian ước lượng để hàng đợi không bị kẹt
-    const timer = setTimeout(resolve, 2000 + content.length * 120)
-    u.onend = u.onerror = () => { clearTimeout(timer); resolve() }
-    window.speechSynthesis.speak(u)
-  })
+  const sentences = splitSentences(content)
+  for (let i = 0; i < sentences.length; i++) {
+    if (gen !== generation) return
+    const part = sentences[i]
+    await new Promise((resolve) => {
+      const u = new SpeechSynthesisUtterance(part)
+      u.voice = voice
+      u.lang = voice.lang || 'vi-VN'
+      u.pitch = cfg.pitch
+      u.rate = cfg.rate
+      u.volume = volume
+      // Chrome đôi khi không gọi onend: tự kết thúc sau thời gian ước lượng để hàng đợi không bị kẹt
+      const timer = setTimeout(resolve, 2000 + part.length * 120)
+      u.onend = u.onerror = () => { clearTimeout(timer); resolve() }
+      window.speechSynthesis.speak(u)
+    })
+    if (i < sentences.length - 1) await sleep(PAUSE_SENTENCE)
+  }
+  if (gen === generation) await sleep(PAUSE_MESSAGE)
 }
 
 /** Trình duyệt nạp danh sách giọng bất đồng bộ, gọi sớm để lần đọc đầu có giọng tiếng Việt */

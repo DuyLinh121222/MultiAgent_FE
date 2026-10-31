@@ -264,7 +264,7 @@ function LessonContent({ content }) {
   if (!content) return null
   const blocks = content.split(/\n\s*\n/)
   return (
-    <div className="mt-space-lg flex flex-col gap-space-md text-body-lg text-on-surface">
+    <div className="mt-space-lg flex flex-col gap-space-md text-[19px] leading-8 text-on-surface">
       {blocks.map((b, i) => {
         const lines = b.split('\n')
         const isExample = /^Ví dụ/.test(lines[0].trim())
@@ -275,7 +275,7 @@ function LessonContent({ content }) {
               if (t.startsWith('•')) {
                 return (
                   <div key={j} className="flex gap-2 pl-1">
-                    <span className="mt-[9px] h-2 w-2 flex-shrink-0 rounded-full bg-primary" />
+                    <span className="mt-[13px] h-2 w-2 flex-shrink-0 rounded-full bg-primary" />
                     <span>{t.slice(1).trim()}</span>
                   </div>
                 )

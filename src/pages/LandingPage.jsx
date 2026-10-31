@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import Icon from '../components/common/Icon'
 import Pet from '../components/game/Pet'
@@ -56,10 +56,14 @@ export default function LandingPage() {
   }, [location.hash, posts.length])
 
   const slides = [{ intro: true, id: 'intro' }, ...posts.slice(0, 4)]
+  // Banner tự chuyển chậm (12 giây) để kịp đọc hết; rê chuột / chạm vào banner thì dừng lại
+  const pausedRef = useRef(false)
   useEffect(() => {
-    const t = setInterval(() => setSlide((s) => (s + 1) % slides.length), 6500)
+    const t = setInterval(() => {
+      if (!pausedRef.current && !document.hidden) setSlide((s) => (s + 1) % slides.length)
+    }, 12000)
     return () => clearInterval(t)
-  }, [slides.length])
+  }, [slides.length, slide])
 
   const studentPlans = plans.filter((p) => p.audience === 'STUDENT' && !p.trial)
   const current = slides[slide % slides.length]
@@ -69,7 +73,9 @@ export default function LandingPage() {
       {/* ================= Banner ================= */}
       <section className="relative overflow-hidden bg-gradient-to-b from-[#e8eeff] to-surface px-margin-mobile pb-space-xl pt-space-lg md:px-margin">
         <div className="mx-auto w-full max-w-7xl">
-          <div className="relative min-h-[420px] overflow-hidden rounded-[36px] shadow-[0_24px_60px_-28px_rgba(0,74,198,0.55)]">
+          <div className="relative min-h-[420px] overflow-hidden rounded-[36px] shadow-[0_24px_60px_-28px_rgba(0,74,198,0.55)]"
+            onMouseEnter={() => { pausedRef.current = true }} onMouseLeave={() => { pausedRef.current = false }}
+            onTouchStart={() => { pausedRef.current = true }}>
             {current.intro ? <IntroSlide key="intro" /> : <PostSlide key={current.id} post={current} />}
             {slides.length > 1 && (
               <>
