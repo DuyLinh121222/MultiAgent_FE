@@ -64,6 +64,16 @@ export default function DiscussionPage() {
     })
   }, [])
 
+  // Máy không có giọng tiếng Việt: hiện hướng dẫn thay vì đọc bằng giọng tiếng Anh
+  useEffect(() => {
+    const onWarn = (e) => {
+      setToast({ ok: false, text: e.detail })
+      setTimeout(() => setToast(null), 12000)
+    }
+    window.addEventListener('mael:voice-warning', onWarn)
+    return () => window.removeEventListener('mael:voice-warning', onWarn)
+  }, [])
+
   useEffect(() => {
     let alive = true
     warmUpVoices()

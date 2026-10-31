@@ -7,11 +7,33 @@ import { ttsApi } from '../api/services'
  */
 
 // Giọng trình duyệt: pitch 0-2, rate 0.1-10. Thầy trầm & chậm, Kiệt cao & nhanh, An trong & vui
+// gender: giọng nam / nữ ưu tiên. Mỗi máy có bộ giọng khác nhau nên KHÔNG chọn theo thứ tự danh sách
+// (thứ tự khác nhau giữa Windows / Mac / Chrome / Edge) mà chọn theo tên giọng đã biết.
 const BROWSER_VOICE = {
-  'agent-tutor': { pitch: 0.75, rate: 0.95, prefer: ['nam', 'male', 'NamMinh', 'An'], index: 0 },
-  'agent-critic': { pitch: 1.35, rate: 1.12, prefer: ['nam', 'male', 'NamMinh'], index: 1 },
-  'agent-creative': { pitch: 1.55, rate: 1.05, prefer: ['nữ', 'female', 'HoaiMy', 'Linh', 'Google'], index: 2 },
+  'agent-tutor': { pitch: 0.8, rate: 0.95, gender: 'male', slot: 0 },
+  'agent-critic': { pitch: 1.25, rate: 1.1, gender: 'male', slot: 1 },
+  'agent-creative': { pitch: 1.35, rate: 1.05, gender: 'female', slot: 0 },
 }
+
+// Giọng tiếng Việt phổ biến, xếp theo chất lượng (tốt trước). Khớp theo tên, không phân biệt hoa thường
+const KNOWN_VOICES = [
+  { match: 'namminh', gender: 'male' },          // Edge: Microsoft NamMinh Online (Natural)
+  { match: 'hoaimy', gender: 'female' },         // Edge: Microsoft HoaiMy Online (Natural)
+  { match: 'google tiếng việt', gender: 'female' }, // Chrome
+  { match: 'google vietnamese', gender: 'female' },
+  { match: 'microsoft an', gender: 'male' },     // Windows: gói giọng Tiếng Việt
+  { match: 'linh', gender: 'female' },           // macOS / iOS
+]
+
+const isVietnamese = (v) => v.lang?.toLowerCase().replace('_', '-').startsWith('vi')
+  || /vietnam|tiếng việt/i.test(v.name)
+
+const rankOf = (v) => {
+  const i = KNOWN_VOICES.findIndex((k) => v.name.toLowerCase().includes(k.match))
+  return i === -1 ? KNOWN_VOICES.length : i
+}
+
+const genderOf = (v) => KNOWN_VOICES[rankOf(v)]?.gender || 'unknown'
 
 /** Đổi kí hiệu toán sang chữ để máy đọc tự nhiên: √9 → "căn 9", x² → "x bình phương" */
 export function speakableText(text) {
@@ -69,24 +91,56 @@ async function isGoogleEnabled() {
     try {
       googleEnabled = Boolean((await ttsApi.status()).enabled)
     } catch {
-      googleEnabled = false
+      // Lỗi mạng / chưa đăng nhập: lần này dùng giọng trình duyệt, lần sau hỏi lại BE
+      return false
     }
   }
   return googleEnabled
 }
 
-function vietnameseVoices() {
-  if (!('speechSynthesis' in window)) return []
-  return window.speechSynthesis.getVoices().filter((v) => v.lang?.toLowerCase().startsWith('vi'))
+let voicesPromise = null
+
+/** Chrome / Edge nạp danh sách giọng bất đồng bộ: chờ sự kiện voiceschanged (tối đa 2 giây) */
+function loadVoices() {
+  if (!('speechSynthesis' in window)) return Promise.resolve([])
+  const now = window.speechSynthesis.getVoices()
+  if (now.length) return Promise.resolve(now)
+  if (!voicesPromise) {
+    voicesPromise = new Promise((resolve) => {
+      const done = () => {
+        window.speechSynthesis.removeEventListener?.('voiceschanged', done)
+        resolve(window.speechSynthesis.getVoices())
+      }
+      window.speechSynthesis.addEventListener?.('voiceschanged', done)
+      setTimeout(done, 2000)
+    }).finally(() => { voicesPromise = null })
+  }
+  return voicesPromise
 }
 
-function pickBrowserVoice(agentId) {
+/** Giọng tiếng Việt của máy, sắp xếp cố định: giọng tốt trước, cùng hạng thì theo tên */
+function vietnameseVoices(all) {
+  return all.filter(isVietnamese).sort((x, y) => rankOf(x) - rankOf(y) || x.name.localeCompare(y.name))
+}
+
+function pickBrowserVoice(agentId, voices) {
   const cfg = BROWSER_VOICE[agentId] || BROWSER_VOICE['agent-tutor']
-  const voices = vietnameseVoices()
   if (voices.length === 0) return null
-  const named = voices.find((v) => cfg.prefer.some((p) => v.name.toLowerCase().includes(p.toLowerCase())))
-  // Có nhiều giọng tiếng Việt thì chia mỗi AI một giọng khác nhau
-  return voices.length > 1 ? voices[cfg.index % voices.length] : named || voices[0]
+  const sameGender = voices.filter((v) => genderOf(v) === cfg.gender)
+  if (sameGender.length) return sameGender[cfg.slot % sameGender.length]
+  // Máy chỉ có giọng khác giới / giọng lạ: dùng giọng tốt nhất, phân biệt AI bằng cao độ & tốc độ
+  return voices[0]
+}
+
+let warned = false
+/** Máy không có giọng tiếng Việt: báo 1 lần cho trang hiện thông báo, KHÔNG đọc bằng giọng tiếng Anh */
+function warnNoVietnameseVoice() {
+  if (warned) return
+  warned = true
+  window.dispatchEvent(new CustomEvent('mael:voice-warning', {
+    detail: 'Máy/trình duyệt này chưa có giọng đọc tiếng Việt. Hãy mở web bằng Microsoft Edge hoặc Google Chrome, '
+      + 'hoặc cài "Vietnamese" trong Cài đặt Windows → Thời gian & ngôn ngữ → Giọng nói.',
+  }))
 }
 
 export function stopSpeaking() {
@@ -128,12 +182,18 @@ export async function speak(agentId, text, gen = generation) {
     }
   }
   if (!('speechSynthesis' in window) || gen !== generation) return
+  const voices = vietnameseVoices(await loadVoices())
+  if (gen !== generation) return
+  const voice = pickBrowserVoice(agentId, voices)
+  if (!voice) {
+    warnNoVietnameseVoice()
+    return
+  }
   const cfg = BROWSER_VOICE[agentId] || BROWSER_VOICE['agent-tutor']
   await new Promise((resolve) => {
     const u = new SpeechSynthesisUtterance(content)
-    u.lang = 'vi-VN'
-    const voice = pickBrowserVoice(agentId)
-    if (voice) u.voice = voice
+    u.voice = voice
+    u.lang = voice.lang || 'vi-VN'
     u.pitch = cfg.pitch
     u.rate = cfg.rate
     u.volume = volume
@@ -146,5 +206,5 @@ export async function speak(agentId, text, gen = generation) {
 
 /** Trình duyệt nạp danh sách giọng bất đồng bộ, gọi sớm để lần đọc đầu có giọng tiếng Việt */
 export function warmUpVoices() {
-  if ('speechSynthesis' in window) window.speechSynthesis.getVoices()
+  loadVoices()
 }

@@ -8,7 +8,13 @@ import { getErrorMessage } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { formatDateTime, formatVND } from '../utils/format'
 import { CONTACT, PAYMENT_QR } from '../constants/site'
-import qrImg from '../assets/momo-qr.jpg'
+import qrDefault from '../assets/momo-qr.jpg'
+import qr99k from '../assets/qr-99k.jpg'
+import qr399k from '../assets/qr-399k.jpg'
+
+/** QR MoMo có sẵn số tiền: quét là app tự điền đúng số tiền của gói. Gói khác giá thì dùng QR chung (tự nhập tiền) */
+const QR_BY_AMOUNT = { 99000: qr99k, 399000: qr399k }
+const qrFor = (amount) => QR_BY_AMOUNT[Math.round(Number(amount))] || qrDefault
 
 /** 30 ngày = tháng, 150 ngày = học kỳ, 365 ngày = năm, còn lại ghi số ngày */
 const periodLabel = (days) => {
@@ -119,6 +125,8 @@ export default function CheckoutPage() {
   }
 
   const waiting = !!payment.customerPaidAt
+  const qrImg = qrFor(payment.amount)
+  const qrHasAmount = qrImg !== qrDefault
   const code = payment.transferCode || payment.id.slice(0, 8).toUpperCase()
 
   return (
@@ -217,7 +225,11 @@ export default function CheckoutPage() {
             </div>
 
             <ol className="relative mt-space-md grid grid-cols-1 gap-space-xs sm:grid-cols-3">
-              {['Mở MoMo hoặc app ngân hàng, quét QR', `Nhập ${formatVND(payment.amount)} và nội dung ${code}`, 'Chuyển xong bấm nút bên dưới'].map((t, i) => (
+              {[
+                'Mở MoMo hoặc app ngân hàng, quét QR',
+                qrHasAmount ? `Số tiền đã điền sẵn, ghi nội dung ${code}` : `Nhập ${formatVND(payment.amount)} và nội dung ${code}`,
+                'Chuyển xong bấm nút bên dưới',
+              ].map((t, i) => (
                 <li key={t} className="flex items-center gap-2 rounded-xl bg-surface-container-low p-2">
                   <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-[12px] font-black text-on-primary">{i + 1}</span>
                   <span className="text-label-md text-on-surface">{t}</span>
