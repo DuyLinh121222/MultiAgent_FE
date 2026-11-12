@@ -13,12 +13,14 @@ const STUDENT_NAV = [
   { to: '/arena', label: 'Đấu trường', icon: 'sports_esports' },
   { to: '/study-room', label: 'Phòng học AI', icon: 'forum' },
   { to: '/quizzes', label: 'Ôn điểm yếu', icon: 'insights' },
+  { to: '/exams', label: 'Kiểm tra', icon: 'edit_note' },
   { to: '/photo-solver', label: 'Giải ảnh', icon: 'photo_camera' },
   { to: '/pets', label: 'Thú cưng', icon: 'pets' },
 ]
 const LECTURER_NAV = [
   { to: '/lecturer', label: 'Duyệt nội dung', icon: 'fact_check', end: true },
   { to: '/lecturer/documents', label: 'Tài liệu PDF', icon: 'picture_as_pdf' },
+  { to: '/lecturer/exams', label: 'Đề kiểm tra', icon: 'edit_note' },
   { to: '/lecturer/blog', label: 'Bài viết', icon: 'campaign' },
 ]
 

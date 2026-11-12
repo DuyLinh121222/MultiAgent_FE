@@ -10,12 +10,14 @@ import {
 import { LessonEditor, QuestionEditor } from '../../components/staff/editors'
 import { contentApi } from '../../api/services'
 import { getErrorMessage } from '../../api/client'
+import { useGrades } from '../../hooks/useCatalog'
 
 /**
  * Kho bài & câu hỏi: cây Lớp → Chương → Ải bên trái, câu hỏi của mục đang chọn bên phải.
  * Xem tỉ lệ học sinh trả lời sai từng câu để sửa câu gây hiểu nhầm.
  */
 export default function ContentBankPage() {
+  const { gradeLevels } = useGrades()
   const [params, setParams] = useSearchParams()
   const [grade, setGrade] = useState(Number(params.get('grade')) || 9)
   const [tree, setTree] = useState(null)
@@ -89,7 +91,7 @@ export default function ContentBankPage() {
       {toast}
       <PageHeader icon="library_books" title="Kho bài & câu hỏi"
         subtitle="Quản lý chương, ải và ngân hàng câu hỏi. Câu có tỉ lệ sai cao thường là câu khó hoặc đề gây hiểu nhầm."
-        actions={<Segmented value={grade} onChange={changeGrade} options={[6, 7, 8, 9].map((g) => ({ value: g, label: `Lớp ${g}` }))} />} />
+        actions={<Segmented value={grade} onChange={changeGrade} options={gradeLevels.map((g) => ({ value: g, label: `Lớp ${g}` }))} />} />
       <ErrorBox message={error} onRetry={loadTree} />
       {!tree ? <Loading /> : !path ? (
         <EmptyState icon="library_books" title={`Chưa có lộ trình Lớp ${grade}`} />

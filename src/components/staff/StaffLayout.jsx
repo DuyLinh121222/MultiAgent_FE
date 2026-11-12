@@ -31,6 +31,7 @@ const CONTENT_GROUP = (isAdmin, pending) => ({
     { to: '/lecturer/review', label: 'Duyệt nội dung', icon: 'fact_check', badge: pending },
     { to: '/lecturer/content', label: 'Kho bài & câu hỏi', icon: 'library_books' },
     { to: '/lecturer/documents', label: 'Tài liệu PDF', icon: 'picture_as_pdf' },
+    { to: '/lecturer/exams', label: 'Đề kiểm tra', icon: 'edit_note' },
     { to: '/lecturer/analytics', label: 'Phân tích học tập', icon: 'monitoring' },
     { to: '/lecturer/history', label: 'Lịch sử duyệt', icon: 'manage_history' },
     { to: '/lecturer/blog', label: 'Bài viết trang chủ', icon: 'campaign' },

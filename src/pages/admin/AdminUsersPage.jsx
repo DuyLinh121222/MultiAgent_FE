@@ -13,6 +13,7 @@ import { formatDate, formatDateTime, formatVND, timeAgo } from '../../utils/form
 import { ROLE_LABEL } from '../../utils/roles'
 import { useAuth } from '../../context/AuthContext'
 import { PAYMENT_STATUS, payStatusKey } from './AdminDashboardPage'
+import { useGrades } from '../../hooks/useCatalog'
 
 const SIZE = 15
 const ROLE_TONE = { STUDENT: 'primary', LECTURER: 'green', ADMIN: 'dark' }
@@ -20,6 +21,7 @@ const GOAL = { EXAM_10: 'Ôn thi vào 10', FOLLOW_CLASS: 'Học theo trên lớp
 
 /** Quản lý người dùng: tìm kiếm, xem chi tiết, khoá / mở khoá, tạo giảng viên, kích hoạt gói */
 export default function AdminUsersPage() {
+  const { gradeLevels } = useGrades()
   const [params, setParams] = useSearchParams()
   const role = params.get('role') || ''
   const plan = params.get('plan') || ''
@@ -72,7 +74,7 @@ export default function AdminUsersPage() {
           {(role === 'STUDENT' || role === '') && (
             <select className={`${fieldCls} !w-auto`} value={grade} onChange={(e) => { setGrade(e.target.value); setPage(0) }}>
               <option value="">Mọi khối</option>
-              {[6, 7, 8, 9].map((g) => <option key={g} value={g}>Lớp {g}</option>)}
+              {gradeLevels.map((g) => <option key={g} value={g}>Lớp {g}</option>)}
             </select>
           )}
           {role === 'STUDENT' && (
@@ -379,6 +381,7 @@ function UserDetailModal({ userId, onClose, onChanged, onError }) {
 }
 
 function EditUserModal({ d, busy, onClose, onSave }) {
+  const { gradeLevels } = useGrades()
   const u = d.user
   const [f, setF] = useState({
     fullName: u.fullName || '', phone: u.phone || '', gradeLevel: u.gradeLevel || 9,
@@ -403,7 +406,7 @@ function EditUserModal({ d, busy, onClose, onSave }) {
           <div className="grid grid-cols-2 gap-space-md">
             <Field label="Số điện thoại"><input className={fieldCls} value={f.phone} onChange={set('phone')} maxLength={20} /></Field>
             <Field label="Lớp">
-              <select className={fieldCls} value={f.gradeLevel} onChange={set('gradeLevel')}>{[6, 7, 8, 9].map((g) => <option key={g} value={g}>Lớp {g}</option>)}</select>
+              <select className={fieldCls} value={f.gradeLevel} onChange={set('gradeLevel')}>{gradeLevels.map((g) => <option key={g} value={g}>Lớp {g}</option>)}</select>
             </Field>
           </div>
         )}

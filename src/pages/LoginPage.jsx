@@ -9,6 +9,8 @@ import { useAuth } from '../context/AuthContext'
 import { homeOf } from '../utils/roles'
 import { getErrorMessage } from '../api/client'
 import loginImg from '../assets/login.jpg'
+import { trialLabel, usePlanInfo } from '../hooks/useCatalog'
+import { formatVND } from '../utils/format'
 
 const COMPANIONS = [
   { emoji: '🤖', name: 'Thầy Trí AI', tag: 'Chỉ bài tận nơi', desc: 'Giải thích từng bước siêu dễ hiểu', color: 'bg-primary text-on-primary', text: 'text-primary' },
@@ -35,6 +37,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const planInfo = usePlanInfo()
 
   if (user) return <Navigate to={homeOf(user.role)} replace />
 
@@ -65,7 +68,7 @@ export default function LoginPage() {
       <header className="bg-surface-container-lowest/95 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
         <div className="flex h-20 items-center justify-between px-margin-mobile md:px-margin">
           <Logo to="/" />
-          <span className="chip hidden bg-secondary-fixed text-on-secondary-fixed sm:inline-flex">🎁 Tặng 7 ngày học thử 0đ</span>
+          <span className="chip hidden bg-secondary-fixed text-on-secondary-fixed sm:inline-flex">🎁 Tặng {trialLabel(planInfo.trialDays)}</span>
         </div>
       </header>
 
@@ -203,14 +206,21 @@ export default function LoginPage() {
               <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-secondary-fixed/40 to-primary-fixed/30 p-3.5">
                 <span className="text-2xl">🎉</span>
                 <div className="flex flex-col">
-                  <span className="text-label-md font-black text-on-secondary-fixed">Chưa có tài khoản? Nhận ngay 7 ngày học thử miễn phí 0đ</span>
-                  <span className="text-body-sm text-on-surface-variant">Sau đó chỉ 99.000đ/tháng để học tiếp cùng 3 bạn AI.</span>
+                  <span className="text-label-md font-black text-on-secondary-fixed">Chưa có tài khoản? Nhận ngay {trialLabel(planInfo.trialDays)}</span>
+                  {planInfo.cheapestStudentPlan && (
+                    <span className="text-body-sm text-on-surface-variant">
+                      Sau đó chỉ từ {formatVND(planInfo.cheapestStudentPlan.price)}/{planInfo.cheapestStudentPlan.durationDays} ngày để học tiếp cùng các bạn AI.
+                    </span>
+                  )}
                   <Link to="/plans" className="mt-1 text-label-md font-bold text-primary hover:underline">Xem bảng giá cho phụ huynh, trung tâm và trường học →</Link>
                 </div>
               </div>
-              <div className="rounded-2xl bg-surface-container-low p-3 text-body-sm text-on-surface-variant">
-                <span className="font-bold text-on-surface">Tài khoản demo</span> (mật khẩu <code>123456</code>): lop9@mael.vn • hocsinh@mael.vn • giangvien@mael.vn
-              </div>
+              {/* Tài khoản demo chỉ hiện khi chạy máy dev (npm run dev), bản deploy không lộ ra */}
+              {import.meta.env.DEV && (
+                <div className="rounded-2xl bg-surface-container-low p-3 text-body-sm text-on-surface-variant">
+                  <span className="font-bold text-on-surface">Tài khoản demo</span> (mật khẩu <code>123456</code>): lop9@mael.vn • hocsinh@mael.vn • giangvien@mael.vn
+                </div>
+              )}
             </div>
           </div>
         </div>

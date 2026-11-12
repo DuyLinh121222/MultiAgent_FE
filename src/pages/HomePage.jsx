@@ -64,6 +64,8 @@ export default function HomePage() {
   const p = map.profile
   const nextPath = map.nextStageType === 'BOSS' ? `/boss/${map.nextStageId}` : `/stage/${map.nextStageId}`
   const progress = map.totalStages ? Math.round((map.clearedStages * 100) / map.totalStages) : 0
+  // Học kỳ lấy theo các chương có ải trên bản đồ (không ghi cứng "Học kỳ 1")
+  const semesters = [...new Set(map.chapters.filter((c) => c.stages.length).map((c) => c.semester))].sort()
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-space-lg px-margin-mobile py-space-lg md:px-margin">
@@ -75,7 +77,7 @@ export default function HomePage() {
             <span className="absolute -bottom-1 -right-1 rounded-full bg-primary px-2 py-0.5 text-label-sm text-on-primary shadow">Cấp {p.level}</span>
           </Link>
           <div className="min-w-0 flex-1">
-            <div className="text-label-sm uppercase tracking-wider text-on-surface-variant">{map.pathName} • Học kỳ 1</div>
+            <div className="text-label-sm uppercase tracking-wider text-on-surface-variant">{map.pathName}{semesters.length ? ` • Học kỳ ${semesters.join(', ')}` : ''}</div>
             <h1 className="truncate text-headline-md text-on-surface">Chào {p.fullName}!</h1>
             <div className="mt-1.5 flex items-center gap-2">
               <div className="h-3 flex-1 overflow-hidden rounded-full bg-surface-container">

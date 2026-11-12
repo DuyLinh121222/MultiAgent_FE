@@ -5,7 +5,8 @@ import Pet from '../components/game/Pet'
 import { Castle, Chest, Coin, Star, Stars } from '../components/game/GameArt'
 import { planApi, publicApi } from '../api/services'
 import { CONTACT } from '../constants/site'
-import { formatDate } from '../utils/format'
+import { formatDate, formatVND } from '../utils/format'
+import { summarizePlans, trialLabel, useSiteStats } from '../hooks/useCatalog'
 import teacherImg from '../assets/avatar-teacher.jpg'
 import kietImg from '../assets/avatar-kiet.jpg'
 import anImg from '../assets/avatar-an.jpg'
@@ -66,6 +67,11 @@ export default function LandingPage() {
   }, [slides.length, slide])
 
   const studentPlans = plans.filter((p) => p.audience === 'STUDENT' && !p.trial)
+  const planInfo = summarizePlans(plans)
+  const stats = useSiteStats()
+  const gradeLabel = stats?.readyGrades?.length
+    ? `Toán lớp ${stats.readyGrades.join(', ')}`
+    : 'Toán THCS'
   const current = slides[slide % slides.length]
 
   return (
@@ -76,7 +82,7 @@ export default function LandingPage() {
           <div className="relative min-h-[420px] overflow-hidden rounded-[36px] shadow-[0_24px_60px_-28px_rgba(0,74,198,0.55)]"
             onMouseEnter={() => { pausedRef.current = true }} onMouseLeave={() => { pausedRef.current = false }}
             onTouchStart={() => { pausedRef.current = true }}>
-            {current.intro ? <IntroSlide key="intro" /> : <PostSlide key={current.id} post={current} />}
+            {current.intro ? <IntroSlide key="intro" trialDays={planInfo.trialDays} /> : <PostSlide key={current.id} post={current} />}
             {slides.length > 1 && (
               <>
                 <button type="button" aria-label="Banner trước" onClick={() => setSlide((s) => (s - 1 + slides.length) % slides.length)}
@@ -99,10 +105,10 @@ export default function LandingPage() {
 
           {/* Số liệu nhanh */}
           <div className="mt-space-md grid grid-cols-2 gap-space-sm md:grid-cols-4">
-            <Stat icon={<Icon name="flag" filled className="text-[26px] text-tertiary" />} value="17 ải" label="Toán 9 HK1" />
-            <Stat icon={<Castle size={34} />} value="5 trùm" label="Cuối mỗi chương" />
-            <Stat icon={<Pet code="tho-bong" size={36} />} value="10 thú" label="Để sưu tầm" />
-            <Stat icon={<Icon name="smart_toy" filled className="text-[26px] text-primary" />} value="3 AI" label="Học cùng em" />
+            <Stat icon={<Icon name="flag" filled className="text-[26px] text-tertiary" />} value={stats ? `${stats.stages} ải` : '...'} label={gradeLabel} />
+            <Stat icon={<Castle size={34} />} value={stats ? `${stats.bosses} trùm` : '...'} label="Cuối mỗi chương" />
+            <Stat icon={<Pet code="tho-bong" size={36} />} value={stats ? `${stats.pets} thú` : '...'} label="Để sưu tầm" />
+            <Stat icon={<Icon name="smart_toy" filled className="text-[26px] text-primary" />} value={stats ? `${stats.agents} AI` : '...'} label="Học cùng em" />
           </div>
         </div>
       </section>
@@ -164,14 +170,14 @@ export default function LandingPage() {
 
       {/* ================= Bảng giá ================= */}
       <section className="mx-auto w-full max-w-7xl px-margin-mobile py-space-xl md:px-margin">
-        <SectionTitle kicker="Bảng giá" title="Dùng thử 7 ngày 0đ, sau đó chỉ từ 99.000đ" />
+        <SectionTitle kicker="Bảng giá" title={`${planInfo.trialDays ? `Dùng thử ${planInfo.trialDays} ngày 0đ` : 'Học thử miễn phí'}${planInfo.minStudentPrice ? `, sau đó chỉ từ ${formatVND(planInfo.minStudentPrice)}` : ''}`} />
         <div className="grid grid-cols-1 gap-space-md md:grid-cols-4">
-          <PlanTile icon="redeem" title="Dùng thử" price="0đ" note="7 ngày, đủ tính năng" to="/login?mode=register" cta="Học thử ngay" highlight />
+          <PlanTile icon="redeem" title="Dùng thử" price="0đ" note={planInfo.trialDays ? `${planInfo.trialDays} ngày, đủ tính năng` : 'Đủ tính năng'} to="/login?mode=register" cta="Học thử ngay" highlight />
           {studentPlans.map((p) => (
             <PlanTile key={p.id} icon={p.featured ? 'workspace_premium' : 'calendar_month'} title={p.name}
               price={`${new Intl.NumberFormat('vi-VN').format(p.price)}đ`} note={`${p.durationDays} ngày`} to="/plans" cta="Xem chi tiết" />
           ))}
-          <PlanTile icon="apartment" title="Trung tâm / Trường" price="Từ 29.000đ" note="mỗi học sinh / tháng" to="/plans?for=CENTER" cta="Nhận báo giá" />
+          <PlanTile icon="apartment" title="Trung tâm / Trường" price={planInfo.minOrgPrice ? `Từ ${formatVND(planInfo.minOrgPrice)}` : 'Liên hệ'} note="mỗi học sinh / tháng" to="/plans?for=CENTER" cta="Nhận báo giá" />
         </div>
       </section>
 
@@ -232,11 +238,11 @@ export default function LandingPage() {
   )
 }
 
-function IntroSlide() {
+function IntroSlide({ trialDays }) {
   return (
     <div className="banner-slide absolute inset-0 grid grid-cols-1 items-center gap-space-md bg-gradient-to-br from-[#2563eb] via-[#1d4fd8] to-[#004ac6] p-space-lg pb-space-xl text-white sm:p-space-xl md:px-20 lg:grid-cols-2">
       <div className="relative z-10 flex flex-col items-start gap-space-md">
-        <span className="chip bg-white/20 text-white"><Icon name="celebration" className="text-[16px]" /> Tặng 7 ngày học thử 0đ</span>
+        <span className="chip bg-white/20 text-white"><Icon name="celebration" className="text-[16px]" /> Tặng {trialLabel(trialDays)}</span>
         <h1 className="text-[32px] font-black leading-[1.15] tracking-tight sm:text-[44px]">
           Học Toán THCS <span className="text-secondary-container">như chơi game</span>
         </h1>

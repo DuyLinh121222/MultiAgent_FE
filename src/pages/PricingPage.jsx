@@ -6,6 +6,7 @@ import ErrorBox from '../components/common/ErrorBox'
 import Pet from '../components/game/Pet'
 import { Chest } from '../components/game/GameArt'
 import { leadApi, paymentApi, planApi } from '../api/services'
+import { summarizePlans } from '../hooks/useCatalog'
 import { getErrorMessage } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { formatDate, formatVND } from '../utils/format'
@@ -20,13 +21,13 @@ const TABS = [
 
 const FAQ = {
   STUDENT: [
-    { q: 'Hết 7 ngày dùng thử có tự động trừ tiền không?', a: 'Không. MAEL không lưu thẻ hay tự trừ tiền. Hết hạn dùng thử, bạn chỉ cần thanh toán nếu muốn học tiếp.' },
-    { q: 'Thanh toán bằng cách nào?', a: 'Hiện hỗ trợ ví MoMo (quét mã QR hoặc mở app MoMo). Gói được kích hoạt ngay khi MoMo báo thanh toán thành công.' },
+    { q: 'Hết {trialDays} dùng thử có tự động trừ tiền không?', a: 'Không. MAEL không lưu thẻ hay tự trừ tiền. Hết hạn dùng thử, bạn chỉ cần thanh toán nếu muốn học tiếp.' },
+    { q: 'Thanh toán bằng cách nào?', a: 'Quét mã QR MoMo, chuyển đúng số tiền và ghi đúng nội dung chuyển khoản. MAEL đối chiếu xong là gói được kích hoạt.' },
     { q: 'Đang còn hạn mà mua thêm thì sao?', a: 'Thời gian gói mới được cộng nối tiếp sau ngày hết hạn hiện tại, không mất ngày nào.' },
     { q: 'Xu, sao và thú cưng có mất khi hết hạn gói không?', a: 'Không. Mọi phần thưởng đã nhận được giữ nguyên, gia hạn là chơi tiếp.' },
   ],
   CENTER: [
-    { q: 'Trung tâm cần tối thiểu bao nhiêu học sinh?', a: 'Từ 30 tài khoản học sinh. Trung tâm nhỏ hơn có thể liên hệ để được tư vấn gói phù hợp.' },
+    { q: 'Trung tâm cần tối thiểu bao nhiêu học sinh?', a: 'Từ {minSeats} tài khoản học sinh. Trung tâm nhỏ hơn có thể liên hệ để được tư vấn gói phù hợp.' },
     { q: 'Giáo viên trung tâm theo dõi học sinh thế nào?', a: 'Bảng điều khiển giáo viên cho thấy ải đã qua, số sao, điểm yếu từng chủ đề của từng học sinh và cả lớp.' },
     { q: 'Có dùng thử cho trung tâm không?', a: 'Có. MAEL hỗ trợ 1 lớp dùng thử 14 ngày sau buổi demo.' },
   ],
@@ -78,6 +79,11 @@ export default function PricingPage() {
 
   if (!plans && !error) return <Loading />
   const list = (plans || []).filter((p) => p.audience === tab)
+  // Điền số liệu thật từ gói đang bán vào câu hỏi thường gặp (số ngày dùng thử, số học sinh tối thiểu)
+  const info = summarizePlans(plans)
+  const fill = (text) => text
+    .replace('{trialDays}', info.trialDays ? `${info.trialDays} ngày` : 'thời gian')
+    .replace('{minSeats}', String(info.minSeats(tab) || info.minSeats('CENTER') || 'vài'))
   const sub = user?.subscription
 
   return (
@@ -144,11 +150,11 @@ export default function PricingPage() {
                 className="w-full rounded-2xl bg-surface-container-lowest p-space-md text-left shadow-sm">
                 <div className="flex items-center justify-between gap-space-md">
                   <h4 className="flex items-center gap-space-sm text-label-lg text-on-surface">
-                    <Icon name="help" className="text-[22px] text-primary" /> {f.q}
+                    <Icon name="help" className="text-[22px] text-primary" /> {fill(f.q)}
                   </h4>
                   <Icon name="expand_more" className={`text-on-surface-variant transition-transform ${openFaq === i ? 'rotate-180' : ''}`} />
                 </div>
-                {openFaq === i && <p className="mt-space-sm text-body-md text-on-surface-variant">{f.a}</p>}
+                {openFaq === i && <p className="mt-space-sm text-body-md text-on-surface-variant">{fill(f.a)}</p>}
               </button>
             ))}
           </div>

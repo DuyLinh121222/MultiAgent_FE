@@ -19,6 +19,8 @@ import DiscussionPage from './pages/DiscussionPage'
 import PhotoSolverPage from './pages/PhotoSolverPage'
 import QuizListPage from './pages/QuizListPage'
 import QuizPlayPage from './pages/QuizPlayPage'
+import ExamChaptersPage from './pages/ExamChaptersPage'
+import ExamAttemptPage from './pages/ExamAttemptPage'
 import PricingPage from './pages/PricingPage'
 import CheckoutPage from './pages/CheckoutPage'
 import NotificationsPage from './pages/NotificationsPage'
@@ -32,6 +34,8 @@ import AnalyticsPage from './pages/lecturer/AnalyticsPage'
 import ReviewHistoryPage from './pages/lecturer/ReviewHistoryPage'
 import LecturerDocumentsPage from './pages/lecturer/LecturerDocumentsPage'
 import LecturerBlogPage from './pages/lecturer/LecturerBlogPage'
+import LecturerExamsPage from './pages/lecturer/LecturerExamsPage'
+import LecturerExamDetailPage from './pages/lecturer/LecturerExamDetailPage'
 import AdminDashboardPage from './pages/admin/AdminDashboardPage'
 import AdminUsersPage from './pages/admin/AdminUsersPage'
 import AdminPlansPage from './pages/admin/AdminPlansPage'
@@ -81,6 +85,8 @@ export default function App() {
           <Route path="photo-solver" element={<PhotoSolverPage />} />
           <Route path="quizzes" element={<QuizListPage />} />
           <Route path="quizzes/:quizId" element={<QuizPlayPage />} />
+          <Route path="exams" element={<ExamChaptersPage />} />
+          <Route path="exams/attempt/:attemptId" element={<ExamAttemptPage />} />
           <Route path="pricing" element={<PricingPage />} />
           <Route path="checkout/:paymentId" element={<CheckoutPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
@@ -98,6 +104,8 @@ export default function App() {
           <Route path="lecturer/analytics" element={<AnalyticsPage />} />
           <Route path="lecturer/history" element={<ReviewHistoryPage />} />
           <Route path="lecturer/documents" element={<LecturerDocumentsPage />} />
+          <Route path="lecturer/exams" element={<LecturerExamsPage />} />
+          <Route path="lecturer/exams/:examId" element={<LecturerExamDetailPage />} />
           <Route path="lecturer/blog" element={<LecturerBlogPage />} />
         </Route>
       </Route>

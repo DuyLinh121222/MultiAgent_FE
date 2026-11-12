@@ -8,12 +8,14 @@ import { publicApi } from '../api/services'
 import { getErrorMessage } from '../api/client'
 import { formatDate } from '../utils/format'
 import { POST_THEMES } from './LandingPage'
+import { trialLabel, usePlanInfo } from '../hooks/useCatalog'
 
 /** Xem một bài viết (công khai) */
 export default function BlogPostPage() {
   const { postId } = useParams()
   const [post, setPost] = useState(null)
   const [error, setError] = useState('')
+  const { trialDays } = usePlanInfo()
 
   useEffect(() => {
     setPost(null)
@@ -57,7 +59,7 @@ export default function BlogPostPage() {
       </div>
       <div className="flex flex-wrap gap-space-sm rounded-[24px] bg-primary-fixed/50 p-space-lg">
         <div className="flex-1 text-headline-sm text-on-primary-fixed">Muốn thử ngay?</div>
-        <Link to="/login?mode=register" className="btn-primary"><Icon name="rocket_launch" className="text-[18px]" /> Học thử 7 ngày 0đ</Link>
+        <Link to="/login?mode=register" className="btn-primary"><Icon name="rocket_launch" className="text-[18px]" /> {trialLabel(trialDays).replace(/^./, (c) => c.toUpperCase())}</Link>
       </div>
     </article>
   )

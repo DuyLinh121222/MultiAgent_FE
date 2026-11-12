@@ -8,6 +8,7 @@ import { Badge, PageHeader, RateBar, Segmented, StatCard } from '../../component
 import { lecturerInsightApi } from '../../api/services'
 import { getErrorMessage } from '../../api/client'
 import { formatDate } from '../../utils/format'
+import { useGrades } from '../../hooks/useCatalog'
 
 const pct = (v) => (v == null ? '—' : `${Math.round(v * 100)}%`)
 
@@ -16,6 +17,7 @@ const pct = (v) => (v == null ? '—' : `${Math.round(v * 100)}%`)
  * Dùng để quyết định soạn thêm bài / sửa câu hỏi / chú ý học sinh.
  */
 export default function AnalyticsPage() {
+  const { gradeLevels } = useGrades()
   const [grade, setGrade] = useState(9)
   const [d, setD] = useState(null)
   const [error, setError] = useState('')
@@ -32,7 +34,7 @@ export default function AnalyticsPage() {
       <PageHeader icon="monitoring" title="Phân tích học tập"
         subtitle="Tổng hợp từ kết quả đi ải, ải trùm, Đấu trường và quiz của học sinh."
         actions={<Segmented value={grade} onChange={setGrade} options={[
-          { value: 0, label: 'Tất cả' }, ...[6, 7, 8, 9].map((g) => ({ value: g, label: `Lớp ${g}` })),
+          { value: 0, label: 'Tất cả' }, ...gradeLevels.map((g) => ({ value: g, label: `Lớp ${g}` })),
         ]} />} />
       <ErrorBox message={error} />
       {!d ? (!error && <Loading />) : (

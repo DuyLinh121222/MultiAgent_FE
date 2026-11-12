@@ -8,13 +8,18 @@ import { Coin } from '../components/game/GameArt'
 import { gameApi } from '../api/services'
 import { getErrorMessage } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { useGrades } from '../hooks/useCatalog'
+import Loading from '../components/common/Loading'
 
-const GRADES = [
-  { grade: 9, desc: 'Bản đồ ải Học kỳ 1 đã sẵn sàng', ready: true },
-  { grade: 8, desc: 'Đang xây bản đồ ải', ready: false },
-  { grade: 7, desc: 'Đang xây bản đồ ải', ready: false },
-  { grade: 6, desc: 'Đang xây bản đồ ải', ready: false },
-]
+/** "Học kỳ 1" / "Học kỳ 1, 2" từ các học kỳ đã có ải */
+const semesterText = (semesters) => (semesters?.length ? `Học kỳ ${semesters.join(', ')}` : '')
+
+/** Mô tả 1 lớp lấy từ dữ liệu thật: số chương, số ải đã xuất bản */
+function gradeDesc(g) {
+  if (g.ready) return `${g.chapters} chương • ${g.publishedLessons} ải${g.semesters?.length ? ` • ${semesterText(g.semesters)}` : ''}`
+  if (g.pendingLessons > 0) return `${g.pendingLessons} ải đang chờ thầy cô duyệt`
+  return 'Đang xây bản đồ ải'
+}
 
 const GOALS = [
   { id: 'EXAM_10', icon: 'emoji_events', title: 'Ôn thi vào lớp 10', desc: 'Luyện chắc từng dạng bài, không bỏ sót bẫy', color: 'bg-secondary-fixed text-secondary' },
@@ -29,7 +34,8 @@ export default function WelcomePage() {
   const { user, patchUser } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
-  const [grade, setGrade] = useState(user?.gradeLevel || 9)
+  const { grades, loading: gradesLoading, error: gradesError } = useGrades()
+  const [grade, setGrade] = useState(user?.gradeLevel || null)
   const [goal, setGoal] = useState(null)
   const [pet, setPet] = useState(null)
   const [starters, setStarters] = useState([])
@@ -39,6 +45,14 @@ export default function WelcomePage() {
   useEffect(() => {
     gameApi.starterPets().then(setStarters).catch((e) => setError(getErrorMessage(e)))
   }, [])
+
+  // Chưa có lớp (hoặc lớp không còn lộ trình) thì chọn sẵn lớp đầu tiên đã có bản đồ ải
+  useEffect(() => {
+    if (!grades.length) return
+    if (!grade || !grades.some((g) => g.gradeLevel === grade)) {
+      setGrade((grades.find((g) => g.ready) || grades[0]).gradeLevel)
+    }
+  }, [grades, grade])
 
   const finish = async () => {
     setSaving(true)
@@ -77,16 +91,19 @@ export default function WelcomePage() {
           {step === 0 && (
             <>
               <StepTitle emoji="👋" title={`Chào ${firstName || 'bạn'}! Em đang học lớp mấy?`} sub="Bản đồ ải sẽ bám đúng chương trình lớp em." />
-              <div className="grid grid-cols-2 gap-space-sm">
-                {GRADES.map((g) => (
-                  <Choice key={g.grade} active={grade === g.grade} onClick={() => setGrade(g.grade)}>
-                    <div className="text-headline-md font-extrabold">Lớp {g.grade}</div>
-                    <div className={`mt-1 flex items-center gap-1 text-body-sm ${g.ready ? 'text-tertiary' : 'text-on-surface-variant'}`}>
-                      <Icon name={g.ready ? 'check_circle' : 'construction'} className="text-[16px]" filled={g.ready} /> {g.desc}
-                    </div>
-                  </Choice>
-                ))}
-              </div>
+              {gradesLoading ? <Loading text="Đang tải danh sách lớp..." /> : (
+                <div className="grid grid-cols-2 gap-space-sm">
+                  {[...grades].sort((a, b) => b.gradeLevel - a.gradeLevel).map((g) => (
+                    <Choice key={g.gradeLevel} active={grade === g.gradeLevel} onClick={() => setGrade(g.gradeLevel)}>
+                      <div className="text-headline-md font-extrabold">Lớp {g.gradeLevel}</div>
+                      <div className={`mt-1 flex items-center gap-1 text-body-sm ${g.ready ? 'text-tertiary' : 'text-on-surface-variant'}`}>
+                        <Icon name={g.ready ? 'check_circle' : 'construction'} className="text-[16px]" filled={g.ready} /> {gradeDesc(g)}
+                      </div>
+                    </Choice>
+                  ))}
+                </div>
+              )}
+              {gradesError && <ErrorBox message={getErrorMessage(gradesError)} />}
             </>
           )}
 

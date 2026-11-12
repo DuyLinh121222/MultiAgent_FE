@@ -98,6 +98,46 @@ export const profileApi = {
   changePassword: (currentPassword, newPassword) => put('/api/me/password', { currentPassword, newPassword }),
 }
 
+/** Dữ liệu công khai tính từ DB: lớp nào đã có bản đồ ải, số liệu trang giới thiệu */
+export const catalogApi = {
+  grades: () => get('/api/public/grades'),
+  stats: () => get('/api/public/stats'),
+}
+
+/** Học sinh làm bài kiểm tra tự luận theo chương: làm tới câu nào chụp / tải ảnh câu đó */
+export const examApi = {
+  chapters: () => get('/api/exams/chapters'),
+  list: (topicId) => get('/api/exams', { params: { topicId } }),
+  start: (examId) => post(`/api/exams/${examId}/attempts`),
+  attempt: (attemptId) => get(`/api/exams/attempts/${attemptId}`),
+  answer: (attemptId, questionId, files) => {
+    const form = new FormData()
+    files.forEach((f) => form.append('files', f))
+    return post(`/api/exams/attempts/${attemptId}/questions/${questionId}/answer`, form, { timeout: 180000 })
+  },
+  submit: (attemptId) => post(`/api/exams/attempts/${attemptId}/submit`),
+}
+
+/** Cổng giảng viên: import đề kiểm tra, sửa / xuất bản, xem và chấm lại bài làm */
+export const examAdminApi = {
+  list: (includeArchived = false) => get('/api/lecturer/exams', { params: { includeArchived } }),
+  get: (id) => get(`/api/lecturer/exams/${id}`),
+  importFile: (file, { topicId, title }) => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('topicId', topicId)
+    if (title) form.append('title', title)
+    return post('/api/lecturer/exams/import', form, { timeout: 120000 })
+  },
+  create: (payload) => post('/api/lecturer/exams', payload),
+  update: (id, payload) => put(`/api/lecturer/exams/${id}`, payload),
+  publish: (id) => post(`/api/lecturer/exams/${id}/publish`),
+  unpublish: (id, archive = false) => client.post(`/api/lecturer/exams/${id}/unpublish`, null, { params: { archive } }).then((r) => r.data),
+  submissions: (id) => get(`/api/lecturer/exams/${id}/submissions`),
+  attempt: (attemptId) => get(`/api/lecturer/exams/attempts/${attemptId}`),
+  grade: (answerId, score, comment) => put(`/api/lecturer/exams/answers/${answerId}/grade`, { score, comment }),
+}
+
 export const publicApi = {
   captcha: () => get('/api/captcha'),
   site: () => get('/api/public/site'),

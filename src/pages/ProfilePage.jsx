@@ -9,6 +9,7 @@ import { gameApi, profileApi } from '../api/services'
 import { getErrorMessage } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { formatDate, formatVND } from '../utils/format'
+import { useGrades } from '../hooks/useCatalog'
 
 const GOALS = [
   { key: 'EXAM_10', label: 'Thi vào 10', icon: 'school' },
@@ -18,6 +19,7 @@ const GOALS = [
 
 /** Hồ sơ học sinh: sửa thông tin, đổi mật khẩu, xem gói và ngày hết hạn, chuỗi ngày, thể lực */
 export default function ProfilePage() {
+  const { gradeLevels } = useGrades()
   const { refreshUser, patchUser } = useAuth()
   const [profile, setProfile] = useState(null)
   const [game, setGame] = useState(null)
@@ -186,7 +188,7 @@ export default function ProfilePage() {
             </div>
             <Label text="Lớp">
               <div className="grid grid-cols-4 gap-2">
-                {[6, 7, 8, 9].map((g) => (
+                {gradeLevels.map((g) => (
                   <button key={g} type="button" onClick={() => setForm((f) => ({ ...f, gradeLevel: g }))}
                     className={`rounded-2xl py-space-sm text-headline-sm font-black ${Number(form.gradeLevel) === g ? 'bg-primary text-white shadow-tactile' : 'bg-surface-container-low text-on-surface-variant'}`}>{g}</button>
                 ))}
